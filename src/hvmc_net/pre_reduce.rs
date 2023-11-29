@@ -33,8 +33,7 @@ pub fn pre_reduce_run_net(nam: &str, net: &mut hvmc::run::Net) -> Result<(), Str
 
   // Separate the derefing interactions, reduce all the others.
   // Also, always put the Ref on the left side (first element).
-  // The mem::replace thing implements a queue using 2 vecs.
-  let mut rdexes = std::mem::take(&mut net.rdex);
+  let mut rdexes: Vec<_> = net.rdex.drain(|n| n).map(Iterator::collect).unwrap_or(vec![]);
   while !rdexes.is_empty() {
     for (a, b) in rdexes {
       match (a.tag(), b.tag()) {
@@ -55,10 +54,10 @@ pub fn pre_reduce_run_net(nam: &str, net: &mut hvmc::run::Net) -> Result<(), Str
       }
       num_iters += 1;
     }
-    rdexes = std::mem::take(&mut net.rdex);
+    rdexes = net.rdex.drain(|n| n).map(Iterator::collect).unwrap_or(vec![]);
   }
   // Move the collected redexes back to the net
-  net.rdex = collected_redexes;
+  net.rdex.extend(collected_redexes);
 
   Ok(())
 }
