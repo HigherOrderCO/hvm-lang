@@ -6,15 +6,15 @@ input_file: tests/golden_tests/flatten_rules/nested.hvm
 (Rule (CtrB b)) = b
 (Rule x) = x
 
-(CtrB1) = λb λ#Bar CtrB1 λ#Bar CtrB2 (CtrB1 b)
+(CtrB1) = λb λ#Bar CtrB1 λ#Bar CtrB2 (#Bar.CtrB1.b CtrB1 b)
 
-(CtrB2) = λa λb λ#Bar CtrB1 λ#Bar CtrB2 (CtrB2 a b)
+(CtrB2) = λa λb λ#Bar CtrB1 λ#Bar CtrB2 (#Bar.CtrB2.b (#Bar.CtrB2.a CtrB2 a) b)
 
 (CtrC) = λ#Baz CtrC CtrC
 
-(CtrA) = λa λb λ#Foo CtrA λ#Foo CtrB (CtrA a b)
+(CtrA) = λa λb λ#Foo CtrA λ#Foo CtrB (#Foo.CtrA.b (#Foo.CtrA.a CtrA a) b)
 
-(CtrB) = λa λ#Foo CtrA λ#Foo CtrB (CtrB a)
+(CtrB) = λa λ#Foo CtrA λ#Foo CtrB (#Foo.CtrB.a CtrB a)
 
 (Rule$F0 a (CtrB1 b)) = (a b)
 (Rule$F0 a (CtrB2 x$0 b)) = (Rule$F0$F0 a x$0 b)

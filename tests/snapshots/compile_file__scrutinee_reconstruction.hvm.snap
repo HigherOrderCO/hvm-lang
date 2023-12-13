@@ -2,14 +2,15 @@
 source: tests/golden_tests.rs
 input_file: tests/golden_tests/compile_file/scrutinee_reconstruction.hvm
 ---
-@5 = ({2 @6 {2 @7 a}} a)
+@5 = ({2 @8 {2 @7 a}} a)
 @6 = (* @A)
 @7 = (* (a a))
+@8 = {4 * @A}
 @A = (a (* a))
 @None = {2 * {2 a a}}
 @Option.or = ({3 a b} c)
 & @5 ~ (b (a c))
-@Some = (a {2 (a b) {2 * b}})
+@Some = (a {2 {4 a b} {2 * b}})
 @main = a
 & @Option.or ~ (b (@None a))
 & @Some ~ (#5 b)

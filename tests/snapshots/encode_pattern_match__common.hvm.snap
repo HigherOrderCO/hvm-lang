@@ -6,7 +6,7 @@ input_file: tests/golden_tests/encode_pattern_match/common.hvm
 
 (False) = λ#Bool True λ#Bool False False
 
-(Filled) = λvalue λ#Box Filled λ#Box Empty (Filled value)
+(Filled) = λvalue λ#Box Filled λ#Box Empty (#Box.Filled.value Filled value)
 
 (Empty) = λ#Box Filled λ#Box Empty Empty
 
@@ -24,14 +24,14 @@ input_file: tests/golden_tests/encode_pattern_match/common.hvm
 
 (Green) = λ#Light Red λ#Light Yellow λ#Light Green Green
 
-(Cons) = λx λxs λ#List Cons λ#List Nil (Cons x xs)
+(Cons) = λx λxs λ#List Cons λ#List Nil (#List.Cons.xs (#List.Cons.x Cons x) xs)
 
 (Nil) = λ#List Cons λ#List Nil Nil
 
-(Some) = λx λ#Option Some λ#Option None (Some x)
+(Some) = λx λ#Option Some λ#Option None (#Option.Some.x Some x)
 
 (None) = λ#Option Some λ#Option None None
 
-(Ok) = λa λ#Result Ok λ#Result Err (Ok a)
+(Ok) = λa λ#Result Ok λ#Result Err (#Result.Ok.a Ok a)
 
-(Err) = λb λ#Result Ok λ#Result Err (Err b)
+(Err) = λb λ#Result Ok λ#Result Err (#Result.Err.b Err b)

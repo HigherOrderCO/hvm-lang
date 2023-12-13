@@ -22,20 +22,20 @@ input_file: tests/golden_tests/flatten_rules/already_flat.hvm
 (Rule6 a) = a
 (Rule6 b) = b
 
-(CtrA1) = λa λ#Bar CtrA1 λ#Bar CtrA2 λ#Bar CtrA3 (CtrA1 a)
+(CtrA1) = λa λ#Bar CtrA1 λ#Bar CtrA2 λ#Bar CtrA3 (#Bar.CtrA1.a CtrA1 a)
 
-(CtrA2) = λa1 λa2 λ#Bar CtrA1 λ#Bar CtrA2 λ#Bar CtrA3 (CtrA2 a1 a2)
+(CtrA2) = λa1 λa2 λ#Bar CtrA1 λ#Bar CtrA2 λ#Bar CtrA3 (#Bar.CtrA2.a2 (#Bar.CtrA2.a1 CtrA2 a1) a2)
 
-(CtrA3) = λa λ#Bar CtrA1 λ#Bar CtrA2 λ#Bar CtrA3 (CtrA3 a)
+(CtrA3) = λa λ#Bar CtrA1 λ#Bar CtrA2 λ#Bar CtrA3 (#Bar.CtrA3.a CtrA3 a)
 
 (CtrB0) = λ#Baz CtrB0 λ#Baz CtrB1 λ#Baz CtrB2 λ#Baz CtrB3 CtrB0
 
-(CtrB1) = λb λ#Baz CtrB0 λ#Baz CtrB1 λ#Baz CtrB2 λ#Baz CtrB3 (CtrB1 b)
+(CtrB1) = λb λ#Baz CtrB0 λ#Baz CtrB1 λ#Baz CtrB2 λ#Baz CtrB3 (#Baz.CtrB1.b CtrB1 b)
 
-(CtrB2) = λb λ#Baz CtrB0 λ#Baz CtrB1 λ#Baz CtrB2 λ#Baz CtrB3 (CtrB2 b)
+(CtrB2) = λb λ#Baz CtrB0 λ#Baz CtrB1 λ#Baz CtrB2 λ#Baz CtrB3 (#Baz.CtrB2.b CtrB2 b)
 
-(CtrB3) = λb λ#Baz CtrB0 λ#Baz CtrB1 λ#Baz CtrB2 λ#Baz CtrB3 (CtrB3 b)
+(CtrB3) = λb λ#Baz CtrB0 λ#Baz CtrB1 λ#Baz CtrB2 λ#Baz CtrB3 (#Baz.CtrB3.b CtrB3 b)
 
 (CtrA) = λ#Foo CtrA λ#Foo CtrB CtrA
 
-(CtrB) = λx λ#Foo CtrA λ#Foo CtrB (CtrB x)
+(CtrB) = λx λ#Foo CtrA λ#Foo CtrB (#Foo.CtrB.x CtrB x)

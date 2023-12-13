@@ -1,0 +1,5 @@
+---
+source: tests/golden_tests.rs
+input_file: tests/golden_tests/run_single_files/field_vectorization.hvm
+---
+(Cons T (Cons T (Cons F (Cons T Nil))))

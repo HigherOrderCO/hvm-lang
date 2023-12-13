@@ -4,10 +4,10 @@ input_file: tests/golden_tests/encode_pattern_match/box.hvm
 ---
 (unbox) = λx (#box x unbox$Pnew)
 
-(new) = λval λ#box new (new val)
+(new) = λval λ#box new (#box.new.val new val)
 
 (unbox$R0) = λval val
 
 (unbox$R1) = λx x
 
-(unbox$Pnew) = λy0 (unbox$R0 y0)
+(unbox$Pnew) = λ#box.new.val y0 (unbox$R0 y0)
