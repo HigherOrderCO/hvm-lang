@@ -52,7 +52,7 @@ input_file: tests/golden_tests/encode_pattern_match/list_merge_sort.hvm
 
 (Unpack$P$PCons) = λy0 λy1 λx0 (Unpack$R1 x0 y0 y1)
 
-(Unpack$P$PNil) = λx0 (Unpack$R0 x0)
+(Unpack$P$PNil) = λx0 (Unpack$R0 *)
 
 (Unpack$P) = λy0 λx ((#List x Unpack$P$PCons Unpack$P$PNil) y0)
 
@@ -62,7 +62,7 @@ input_file: tests/golden_tests/encode_pattern_match/list_merge_sort.hvm
 
 (MergePair$P$PCons) = λy0 λy1 λx0 (MergePair$R0 x0 y0 y1)
 
-(MergePair$P$PNil) = λx0 (MergePair$R1 x0 Nil)
+(MergePair$P$PNil) = λx0 (MergePair$R1 * Nil)
 
 (MergePair$P) = λy0 λx ((#List x MergePair$P$PCons MergePair$P$PNil) y0)
 
@@ -74,11 +74,11 @@ input_file: tests/golden_tests/encode_pattern_match/list_merge_sort.hvm
 
 (Merge$P$PCons$PCons) = λy0 λy1 λx0 λx1 λx2 (Merge$R2 x0 x1 x2 y0 y1)
 
-(Merge$P$PCons$PNil) = λx0 λx1 λx2 (Merge$R1 x0 (Cons x1 x2))
+(Merge$P$PCons$PNil) = λx0 λx1 λx2 (Merge$R1 * (Cons x1 x2))
 
 (Merge$P$PCons) = λy0 λy1 λx0 λx ((#List x Merge$P$PCons$PCons Merge$P$PCons$PNil) x0 y0 y1)
 
-(Merge$P$PNil) = λx0 (Merge$R0 x0)
+(Merge$P$PNil) = λx0 (Merge$R0 *)
 
 (Merge$P) = λy0 λx ((#List x Merge$P$PCons Merge$P$PNil) y0)
 
@@ -88,7 +88,7 @@ input_file: tests/golden_tests/encode_pattern_match/list_merge_sort.hvm
 
 (Unpack$F0$P$P$PCons) = λy0 λy1 λx0 λx1 (Unpack$F0$R1 x0 x1 (Cons y0 y1))
 
-(Unpack$F0$P$P$PNil) = λx0 λx1 (Unpack$F0$R0 x0 x1)
+(Unpack$F0$P$P$PNil) = λx0 λx1 (Unpack$F0$R0 * x1)
 
 (Unpack$F0$P$P) = λy0 λx0 λx ((#List x Unpack$F0$P$P$PCons Unpack$F0$P$P$PNil) x0 y0)
 
@@ -100,7 +100,7 @@ input_file: tests/golden_tests/encode_pattern_match/list_merge_sort.hvm
 
 (MergePair$F0$P$P$PCons) = λy0 λy1 λx0 λx1 (MergePair$F0$R0 x0 x1 y0 y1)
 
-(MergePair$F0$P$P$PNil) = λx0 λx1 (MergePair$F0$R1 x0 x1 Nil)
+(MergePair$F0$P$P$PNil) = λx0 λx1 (MergePair$F0$R1 * x1 Nil)
 
 (MergePair$F0$P$P) = λy0 λx0 λx ((#List x MergePair$F0$P$P$PCons MergePair$F0$P$P$PNil) x0 y0)
 

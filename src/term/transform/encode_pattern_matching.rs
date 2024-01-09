@@ -43,7 +43,7 @@ fn make_pattern_matching_def(book: &mut Book, def_id: DefId, def_type: &[Type]) 
   // First create a definition for each rule body
   let mut rule_bodies = vec![];
   for rule in def.rules.iter_mut() {
-    let body = std::mem::replace(&mut rule.body, Term::Era);
+    let body = std::mem::take(&mut rule.body);
     let body = make_rule_body(body, &rule.pats);
     rule_bodies.push(body);
   }
@@ -146,40 +146,61 @@ fn make_leaf_pattern_matching_case(
   // The term we're building
   let term = Term::Ref { def_id: rule_def_id };
 
+  // The lambdas  of the rule we're calling
+  let lambdas_usage = &mut book.defs[&rule_def_id].rules[0].body.lambdas_usage().into_iter();
+
   let (num_new_args, num_old_args) = get_pat_arg_count(&match_path);
   let old_args = (0 .. num_old_args).map(|x| Name(format!("x{x}")));
   let new_args = (0 .. num_new_args).map(|x| Name(format!("y{x}")));
 
-  let mut arg_use = old_args.clone().chain(new_args.clone());
+  let arg_use = &mut old_args.clone().chain(new_args.clone());
+
+  fn next(
+    usage: &mut impl Iterator<Item = Option<()>>,
+    args: &mut impl Iterator<Item = Name>,
+  ) -> Option<Name> {
+    usage.next().zip(args.next()).map(|(usage, arg)| usage.map(|_| arg)).flatten()
+  }
+
+  fn into_iter(
+    usage: impl Iterator<Item = Option<()>>,
+    args: impl Iterator<Item = Name>,
+  ) -> impl Iterator<Item = Option<Name>> {
+    usage.zip(args).map(|(usage, arg)| usage.map(|_| arg))
+  }
 
   // Add the applications to call the rule body
   let term = match_path.iter().zip(&rule.pats).fold(term, |term, (matched, pat)| {
     match (matched, pat) {
-      (Pattern::Var(_), Pattern::Var(_)) => Term::arg_call(term, arg_use.next().unwrap()),
+      (Pattern::Var(_), Pattern::Var(_)) => Term::optional_arg_call(term, next(lambdas_usage, arg_use)),
       (Pattern::Ctr(_, vars), Pattern::Ctr(_, _)) => {
-        vars.iter().fold(term, |term, _| Term::arg_call(term, arg_use.next().unwrap()))
+        vars.iter().fold(term, |term, _| Term::optional_arg_call(term, next(lambdas_usage, arg_use)))
       }
       // This particular rule was not matching on this arg but due to the other rules we had to match on a constructor.
       // So, to call the rule body we have to recreate the constructor.
       // (On scott encoding, if one of the cases is matched we must also match on all the other constructors for this arg)
       (Pattern::Ctr(ctr_nam, vars), Pattern::Var(_)) => {
-        let ctr_ref_id = book.def_names.def_id(ctr_nam).unwrap();
         let ctr_args = vars.iter().map(|_| arg_use.next().unwrap());
-        let ctr_term = ctr_args.fold(Term::Ref { def_id: ctr_ref_id }, Term::arg_call);
+        
+        // If the rule lambda is discarding the Ctr, we don't need to re-build it
+        let ctr_term = if lambdas_usage.next().flatten().is_none() {
+          Term::Era
+        } else {
+          let ctr_ref_id = book.def_names.def_id(ctr_nam).unwrap();
+          ctr_args.fold(Term::Ref { def_id: ctr_ref_id }, Term::arg_call)
+        };
+
         Term::App { tag: Tag::Static, fun: Box::new(term), arg: Box::new(ctr_term) }
       }
       // As the destructuring of the tuple happens later, we just pass the tuple itself.
-      (_, Pattern::Tup(..)) => Term::arg_call(term, arg_use.next().unwrap()),
-      (Pattern::Tup(box Pattern::Var(fst), box Pattern::Var(snd)), Pattern::Var(..)) => {
-        let fst = if let Some(nam) = fst { Term::Var { nam: nam.clone() } } else { Term::Era };
-        let snd = if let Some(nam) = snd { Term::Var { nam: nam.clone() } } else { Term::Era };
-        Term::Tup { fst: Box::new(fst), snd: Box::new(snd) }
-      }
+      (Pattern::Var(_), Pattern::Tup(..)) => Term::optional_arg_call(term, next(lambdas_usage, arg_use)),
       (Pattern::Num(MatchNum::Zero), Pattern::Num(MatchNum::Zero)) => {
-        arg_use.clone().fold(term, Term::arg_call)
+        let optional_args = into_iter(lambdas_usage.clone(), arg_use.clone());
+        optional_args.fold(term, Term::optional_arg_call)
       }
       (Pattern::Num(MatchNum::Succ { .. }), Pattern::Num(MatchNum::Succ { .. })) => {
-        arg_use.clone().fold(term, Term::arg_call)
+        let optional_args = into_iter(lambdas_usage.clone(), arg_use.clone());
+        optional_args.fold(term, Term::optional_arg_call)
       }
       (Pattern::Var(..), Pattern::Num(..)) => term,
       (Pattern::Ctr(..), _) => unreachable!(),
@@ -353,6 +374,39 @@ impl Term {
 
   fn arg_call(term: Term, arg: Name) -> Term {
     Term::App { tag: Tag::Static, fun: Box::new(term), arg: Box::new(Term::Var { nam: arg }) }
+  }
+
+  fn optional_arg_call(term: Term, arg: Option<Name>) -> Term {
+    let arg = Box::new(arg.map_or(Term::Era, |nam| Term::Var { nam }));
+    Term::App { tag: Tag::Static, fun: Box::new(term), arg }
+  }
+
+  // Returns a sequence representing whether the lambda arg is binded or ignored
+  fn lambdas_usage(&self) -> Vec<Option<()>> {
+    fn go(term: &Term, vec: &mut Vec<Option<()>>) {
+      match term {
+        Term::Lam { nam: None, bod, .. } => {
+          vec.push(None);
+          go(bod, vec);
+        }
+        Term::Lam { nam: Some(_), bod, .. } => {
+          vec.push(Some(()));
+          go(bod, vec);
+        }
+        Term::Let { nxt, .. } | Term::Dup { nxt, .. } => {
+          go(nxt, vec);
+        }
+        _ => {}
+      }
+    }
+
+    let mut term = self.clone();
+    term.make_var_names_unique();
+    term.linearize_vars();
+
+    let mut res = Vec::new();
+    go(&term, &mut res);
+    res
   }
 }
 

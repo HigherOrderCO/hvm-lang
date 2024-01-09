@@ -58,11 +58,11 @@ input_file: tests/golden_tests/encode_pattern_match/bool.hvm
 
 (and3$Ptrue$Ptrue) = and3$R0
 
-(and3$Ptrue$Pfalse) = (and3$R1 true false)
+(and3$Ptrue$Pfalse) = (and3$R1 * *)
 
 (and3$Ptrue) = λx (#bool x and3$Ptrue$Ptrue and3$Ptrue$Pfalse)
 
-(and3$Pfalse) = (and3$R1 false)
+(and3$Pfalse) = (and3$R1 *)
 
 (and4$R0) = λb false
 
@@ -70,9 +70,9 @@ input_file: tests/golden_tests/encode_pattern_match/bool.hvm
 
 (and4$R2) = λa λb true
 
-(and4$Ptrue$Ptrue) = (and4$R2 true true)
+(and4$Ptrue$Ptrue) = (and4$R2 * *)
 
-(and4$Ptrue$Pfalse) = (and4$R1 true)
+(and4$Ptrue$Pfalse) = (and4$R1 *)
 
 (and4$Ptrue) = λx (#bool x and4$Ptrue$Ptrue and4$Ptrue$Pfalse)
 

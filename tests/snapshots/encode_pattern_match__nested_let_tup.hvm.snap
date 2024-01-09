@@ -28,12 +28,12 @@ input_file: tests/golden_tests/encode_pattern_match/nested_let_tup.hvm
 
 (main$match$1$F0$R0) = λi λ%0 let (j, k) = %0; j
 
-(main$match$1$F0$P$P) = λy0 λx0 (main$match$1$F0$R0 x0 y0)
+(main$match$1$F0$P$P) = λy0 λx0 (main$match$1$F0$R0 * y0)
 
 (main$match$1$F0$P) = λy0 λx (main$match$1$F0$P$P x y0)
 
 (main$match$3$F0$R0) = λa λ%0 let (b, c) = %0; (main$match$2 b)
 
-(main$match$3$F0$P$P) = λy0 λx0 (main$match$3$F0$R0 x0 y0)
+(main$match$3$F0$P$P) = λy0 λx0 (main$match$3$F0$R0 * y0)
 
 (main$match$3$F0$P) = λy0 λx (main$match$3$F0$P$P x y0)
