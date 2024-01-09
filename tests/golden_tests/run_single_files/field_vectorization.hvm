@@ -1,0 +1,28 @@
+data Box = (New a)
+data Bool = T | F
+data List = (Cons x xs) | Nil
+data Pair = (Tup a b)
+
+(Tup.and (Tup (New T) (New T))) = T
+(Tup.and (Tup a b)) = F
+
+(Not T) = F
+(Not F) = T
+
+main = (Not
+  (Tup.and 
+    (Cons 
+      (Tup (New T) (New F))
+      (Cons 
+        (Tup (New F) (New F))
+        (Cons
+          (Tup (New T) (New T))
+          (Cons
+            (Tup (New F) (New T))
+            Nil
+          )
+        )
+      )
+    )
+  )
+)

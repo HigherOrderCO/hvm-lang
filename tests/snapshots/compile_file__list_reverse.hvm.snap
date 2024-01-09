@@ -6,17 +6,21 @@ input_file: tests/golden_tests/compile_file/list_reverse.hvm
 & @concat ~ (d (e c))
 & @cons ~ (a (@nil e))
 & @reverse ~ (b d)
+@8 = {6 a {4 b c}}
+& @6 ~ (a (b c))
 @A = (a (b (c d)))
 & @cons ~ (a (e d))
 & @concat ~ (b (c e))
 @B = (a a)
-@concat = ({2 @A {2 @B a}} a)
-@cons = (a (b {2 (a (b c)) {2 * c}}))
+@C = {6 a {4 b c}}
+& @A ~ (a (b c))
+@concat = ({2 @C {2 @B a}} a)
+@cons = (a (b {2 {6 a {4 b c}} {2 * c}}))
 @main = a
 & @reverse ~ (b a)
 & @cons ~ (#3 (c b))
 & @cons ~ (#2 (d c))
 & @cons ~ (#1 (@nil d))
 @nil = {2 * {2 a a}}
-@reverse = ({2 @6 {2 @nil a}} a)
+@reverse = ({2 @8 {2 @nil a}} a)
 

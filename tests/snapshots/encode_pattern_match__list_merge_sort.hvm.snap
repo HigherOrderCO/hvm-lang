@@ -20,7 +20,7 @@ input_file: tests/golden_tests/encode_pattern_match/list_merge_sort.hvm
 
 (False) = λ#Bool True λ#Bool False False
 
-(Cons) = λhead λtail λ#List Cons λ#List Nil (Cons head tail)
+(Cons) = λhead λtail λ#List Cons λ#List Nil (#List.Cons.tail (#List.Cons.head Cons head) tail)
 
 (Nil) = λ#List Cons λ#List Nil Nil
 
@@ -40,7 +40,7 @@ input_file: tests/golden_tests/encode_pattern_match/list_merge_sort.hvm
 
 (Map$R1) = λh λt λf (Cons (f h) (Map t f))
 
-(Map$PCons) = λy0 λy1 (Map$R1 y0 y1)
+(Map$PCons) = λ#List.Cons.head y0 λ#List.Cons.tail y1 (Map$R1 y0 y1)
 
 (Map$PNil) = Map$R0
 
@@ -50,7 +50,7 @@ input_file: tests/golden_tests/encode_pattern_match/list_merge_sort.hvm
 
 (Unpack$R2) = λcmp λxs (Unpack cmp (MergePair cmp xs))
 
-(Unpack$P$PCons) = λy0 λy1 λx0 (Unpack$R1 x0 y0 y1)
+(Unpack$P$PCons) = λ#List.Cons.head y0 λ#List.Cons.tail y1 λx0 (Unpack$R1 x0 y0 y1)
 
 (Unpack$P$PNil) = λx0 (Unpack$R0 x0)
 
@@ -60,7 +60,7 @@ input_file: tests/golden_tests/encode_pattern_match/list_merge_sort.hvm
 
 (MergePair$R1) = λcmp λxs xs
 
-(MergePair$P$PCons) = λy0 λy1 λx0 (MergePair$R0 x0 y0 y1)
+(MergePair$P$PCons) = λ#List.Cons.head y0 λ#List.Cons.tail y1 λx0 (MergePair$R0 x0 y0 y1)
 
 (MergePair$P$PNil) = λx0 (MergePair$R1 x0 Nil)
 
@@ -72,11 +72,11 @@ input_file: tests/golden_tests/encode_pattern_match/list_merge_sort.hvm
 
 (Merge$R2) = λcmp λxh λxt λyh λyt (If (cmp xh yh) let ys = (Cons yh yt); (Cons xh (Merge cmp xt ys)) let xs = (Cons xh xt); (Cons yh (Merge cmp xs yt)))
 
-(Merge$P$PCons$PCons) = λy0 λy1 λx0 λx1 λx2 (Merge$R2 x0 x1 x2 y0 y1)
+(Merge$P$PCons$PCons) = λ#List.Cons.head y0 λ#List.Cons.tail y1 λx0 λx1 λx2 (Merge$R2 x0 x1 x2 y0 y1)
 
 (Merge$P$PCons$PNil) = λx0 λx1 λx2 (Merge$R1 x0 (Cons x1 x2))
 
-(Merge$P$PCons) = λy0 λy1 λx0 λx ((#List x Merge$P$PCons$PCons Merge$P$PCons$PNil) x0 y0 y1)
+(Merge$P$PCons) = λ#List.Cons.head y0 λ#List.Cons.tail y1 λx0 λx ((#List x Merge$P$PCons$PCons Merge$P$PCons$PNil) x0 y0 y1)
 
 (Merge$P$PNil) = λx0 (Merge$R0 x0)
 
@@ -86,7 +86,7 @@ input_file: tests/golden_tests/encode_pattern_match/list_merge_sort.hvm
 
 (Unpack$F0$R1) = λcmp λx$0 λx$1 (Unpack cmp (MergePair cmp (Cons x$0 x$1)))
 
-(Unpack$F0$P$P$PCons) = λy0 λy1 λx0 λx1 (Unpack$F0$R1 x0 x1 (Cons y0 y1))
+(Unpack$F0$P$P$PCons) = λ#List.Cons.head y0 λ#List.Cons.tail y1 λx0 λx1 (Unpack$F0$R1 x0 x1 (Cons y0 y1))
 
 (Unpack$F0$P$P$PNil) = λx0 λx1 (Unpack$F0$R0 x0 x1)
 
@@ -98,7 +98,7 @@ input_file: tests/golden_tests/encode_pattern_match/list_merge_sort.hvm
 
 (MergePair$F0$R1) = λcmp λx$0 λx$1 (Cons x$0 x$1)
 
-(MergePair$F0$P$P$PCons) = λy0 λy1 λx0 λx1 (MergePair$F0$R0 x0 x1 y0 y1)
+(MergePair$F0$P$P$PCons) = λ#List.Cons.head y0 λ#List.Cons.tail y1 λx0 λx1 (MergePair$F0$R0 x0 x1 y0 y1)
 
 (MergePair$F0$P$P$PNil) = λx0 λx1 (MergePair$F0$R1 x0 x1 Nil)
 

@@ -1,4 +1,6 @@
-data Tree = (Leaf x) | (Node x0 x1)
+// data Tree = (Leaf x) | (Node x0 x1)
+Leaf = λx      λ#Tree l λ#Tree n (l x)
+Node = λx0 λx1 λ#Tree l λ#Tree n (n x0 x1)
 
 swap = λn match n {
   0: λx0 λx1 (Node x0 x1)

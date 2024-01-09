@@ -475,6 +475,10 @@ impl<'a> Reader<'a> {
           self.deref(cur);
           match cur {
             Term::App { tag: Tag::Static, fun, .. } => cur = fun,
+            Term::App { tag: tag @ Tag::Named(_), fun, .. } => {
+              *tag = Tag::Static;
+              cur = fun
+            }
             _ => return self.error(ReadbackError::InvalidAdt),
           }
         }

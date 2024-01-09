@@ -2,16 +2,20 @@
 source: tests/golden_tests.rs
 input_file: tests/golden_tests/compile_file/adt_option_and.hvm
 ---
-@5 = ({2 @7 {2 @8 a}} a)
-@6 = ({2 @B {2 @C a}} a)
+@5 = ({2 @9 {2 @8 a}} a)
+@6 = ({2 @D {2 @C a}} a)
 @7 = (a (b c))
 & @Some ~ ([b a] c)
 @8 = (* @None)
+@9 = {4 a b}
+& @7 ~ (a b)
 @B = (a (b c))
 & @5 ~ (b (a c))
 @C = (* @None)
+@D = {4 a b}
+& @B ~ (a b)
 @None = {2 * {2 a a}}
-@Some = (a {2 (a b) {2 * b}})
+@Some = (a {2 {4 a b} {2 * b}})
 @main = a
 & @6 ~ (b (c a))
 & @Some ~ (#3 c)

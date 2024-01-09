@@ -2,12 +2,15 @@
 source: tests/golden_tests.rs
 input_file: tests/golden_tests/compile_file/nested_adt_match.hvm
 ---
-@4 = ({2 @5 {2 @6 a}} a)
-@5 = ({2 @B {2 @A a}} a)
+@4 = ({2 @8 {2 @6 a}} a)
+@5 = ({2 @C {2 @A a}} a)
 @6 = #0
+@8 = {4 a b}
+& @5 ~ (a b)
 @A = #0
 @B = (a a)
-@Some = (a {2 (a b) {2 * b}})
+@C = {4 a a}
+@Some = (a {2 {4 a b} {2 * b}})
 @main = a
 & @4 ~ (b a)
 & @Some ~ (c b)

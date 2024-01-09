@@ -23,7 +23,7 @@ fn make_lam(adt_name: &Name, ctr_args: Vec<Name>, ctrs: Vec<Name>, ctr_name: &Na
   let ctr = Term::Var { nam: ctr_name.clone() };
 
   let app = ctr_args.iter().cloned().fold(ctr, |acc, nam| Term::App {
-    tag: Tag::Static,
+    tag: Tag::Named(Name(format!("{}.{}.{}", adt_name, ctr_name, nam))),
     fun: Box::new(acc),
     arg: Box::new(Term::Var { nam }),
   });

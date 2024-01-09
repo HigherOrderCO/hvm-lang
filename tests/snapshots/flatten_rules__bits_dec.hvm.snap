@@ -8,9 +8,9 @@ input_file: tests/golden_tests/flatten_rules/bits_dec.hvm
 
 (Data.Bits.e) = λ#Data.Bits Data.Bits.e λ#Data.Bits Data.Bits.o λ#Data.Bits Data.Bits.i Data.Bits.e
 
-(Data.Bits.o) = λt λ#Data.Bits Data.Bits.e λ#Data.Bits Data.Bits.o λ#Data.Bits Data.Bits.i (Data.Bits.o t)
+(Data.Bits.o) = λt λ#Data.Bits Data.Bits.e λ#Data.Bits Data.Bits.o λ#Data.Bits Data.Bits.i (#Data.Bits.Data.Bits.o.t Data.Bits.o t)
 
-(Data.Bits.i) = λt λ#Data.Bits Data.Bits.e λ#Data.Bits Data.Bits.o λ#Data.Bits Data.Bits.i (Data.Bits.i t)
+(Data.Bits.i) = λt λ#Data.Bits Data.Bits.e λ#Data.Bits Data.Bits.o λ#Data.Bits Data.Bits.i (#Data.Bits.Data.Bits.i.t Data.Bits.i t)
 
 (Data.Bits.dec$F0 (Data.Bits.e)) = Data.Bits.e
 (Data.Bits.dec$F0 (Data.Bits.o b.pred)) = (Data.Bits.i (Data.Bits.dec b.pred))
