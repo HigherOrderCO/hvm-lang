@@ -1,0 +1,31 @@
+data Bool = True | False
+data List = (Cons head tail) | Nil
+
+If True then else = then
+If False then else = else
+
+Pure x = (Cons x Nil)
+
+Map Nil f = Nil
+Map (Cons h t) f = (Cons (f h) (Map t f))
+
+MergeSort cmp xs = (Unpack cmp (Map xs Pure))
+
+Unpack cmp Nil = Nil
+Unpack cmp (Cons h Nil) = h
+Unpack cmp xs = (Unpack cmp (MergePair cmp xs))
+
+MergePair cmp (Cons h1 (Cons h2 t)) = (Cons (Merge cmp h1 h2) (MergePair cmp t))
+MergePair cmp xs = xs
+
+Merge cmp Nil ys = ys
+Merge cmp xs Nil = xs
+Merge cmp (Cons xh xt) (Cons yh yt) =
+  (If (cmp xh yh)
+    let ys = (Cons yh yt)
+    (Cons xh (Merge cmp xt ys))
+    let xs = (Cons xh xt)
+    (Cons yh (Merge cmp xs yt))
+  )
+
+main = MergeSort

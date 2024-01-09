@@ -4,7 +4,8 @@ input_file: tests/golden_tests/compile_file/and.hvm
 ---
 @5 = (* @false)
 @6 = (a a)
-@9 = (a ({2 @6 {2 @5 (a b)}} b))
+@8 = (* @false)
+@9 = (a ({2 @6 {2 @8 (a b)}} b))
 @false = {2 * {2 a a}}
 @main = a
 & @9 ~ (@true (@false a))

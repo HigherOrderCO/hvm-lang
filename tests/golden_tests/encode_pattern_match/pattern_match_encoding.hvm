@@ -1,0 +1,6 @@
+data MyType = (A a) | (B b) | (C c) | (D d1 d2) | (E e1 e2)
+
+Foo (A a) = 100
+Foo * = 200
+
+main = (Foo A 2)
