@@ -98,14 +98,16 @@ impl Tag {
 impl fmt::Display for Pattern {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Pattern::Var(None) => write!(f, "*"),
-      Pattern::Var(Some(nam)) => write!(f, "{nam}"),
-      Pattern::Ctr(nam, pats) => {
-        write!(f, "({}{})", nam, DisplayJoin(|| pats.iter().map(|p| display!(" {p}")), ""))
+      Pattern::Var(x) => write!(f, x),
+      Pattern::Ctr {
+        nam, args
+        } => {
+        write!(f, "({}{})", nam, DisplayJoin(|| args.iter().map(|p| display!(" {p}")), ""))
       }
-      Pattern::Num(num) => write!(f, "{num}"),
-      Pattern::Tup(fst, snd) => write!(f, "({}, {})", fst, snd,),
-      Pattern::Dup(tag, fst, snd) => write!(f, "{} {{{} {}}}", tag.display(), fst, snd),
+      Pattern::Num { mat } => write!(f, "{mat}"),
+      Pattern::Tup { fst, snd } => write!(f, "({}, {})", fst, snd,),
+      Pattern::Dup { tag, fst, snd } => write!(f, "{} {{{} {}}}", tag.display(), fst, snd),
+      Pattern::Era => write!(f, "*")
     }
   }
 }

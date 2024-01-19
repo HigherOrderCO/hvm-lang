@@ -34,7 +34,7 @@ pub fn compile_book(book: &mut Book, opt_level: OptimizationLevel) -> Result<Com
 }
 
 pub fn desugar_book(book: &mut Book, opt_level: OptimizationLevel) -> Result<DefId, String> {
-  let main = book.check_has_main()?;
+  /*let main = book.check_has_main()?;
   book.check_shared_names()?;
   book.encode_strs();
   book.generate_scott_adts();
@@ -52,20 +52,20 @@ pub fn desugar_book(book: &mut Book, opt_level: OptimizationLevel) -> Result<Def
   }
   if opt_level >= OptimizationLevel::Heavy {
     book.prune(&main);
-  }
-  Ok(main)
+  }*/
+  Ok(todo!())
 }
 
 pub fn encode_pattern_matching(book: &mut Book) -> Result<(), String> {
-  book.resolve_ctrs_in_pats();
+  /*book.resolve_ctrs_in_pats();
   book.check_unbound_pats()?;
-  book.desugar_let_destructors();
+  //  book.desugar_let_destructors();
   book.desugar_implicit_match_binds();
   book.extract_matches()?;
   book.flatten_rules();
   let def_types = book.infer_def_types()?;
   book.check_exhaustive_patterns(&def_types)?;
-  book.encode_pattern_matching_functions(&def_types);
+  book.encode_pattern_matching_functions(&def_types);**/
   Ok(())
 }
 

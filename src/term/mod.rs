@@ -3,13 +3,13 @@ use indexmap::IndexMap;
 use shrinkwraprs::Shrinkwrap;
 use std::collections::{BTreeMap, HashMap};
 
-pub mod check;
+//pub mod check;
 pub mod display;
 pub mod encoder;
 pub mod load_book;
 pub mod parser;
 pub mod readback;
-pub mod transform;
+//pub mod transform;
 
 /// The representation of a program.
 #[derive(Debug, Clone, Default)]
@@ -64,7 +64,7 @@ pub struct Rule {
 #[derive(Debug, Clone)]
 pub enum MatchNum {
   Zero,
-  Succ(Option<Option<Name>>),
+  Succ(Box<Pattern>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -146,11 +146,26 @@ pub enum Term {
 
 #[derive(Debug, Clone)]
 pub enum Pattern {
-  Var(Option<Name>),
-  Ctr(Name, Vec<Pattern>),
-  Num(MatchNum),
-  Tup(Box<Pattern>, Box<Pattern>),
-  Dup(Tag, Box<Pattern>, Box<Pattern>),
+  Var {
+    nam: Name,
+  },
+  Ctr {
+    nam: Name,
+    args: Vec<Pattern>,
+  },
+  Num {
+    mat: MatchNum
+  },
+  Tup {
+    fst: Box<Pattern>, 
+    snd: Box<Pattern>
+  },
+  Sup {
+    tag: Tag,
+    fst: Box<Pattern>, 
+    snd: Box<Pattern>
+  },
+  Era,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -330,7 +345,7 @@ impl Term {
         for (rule, term) in arms {
           let can_subst;
 
-          if let Pattern::Num(MatchNum::Succ(Some(Some(nam)))) = rule {
+          if let Pattern::Num { mat: MatchNum::Succ(Some(Some(nam))) } = rule {
             can_subst = nam != from
           } else {
             can_subst = true
@@ -465,93 +480,68 @@ impl Term {
 
 impl Pattern {
   pub fn occurs(&self, name: &Name) -> bool {
-    match self {
-      Pattern::Var(None) => false,
-      Pattern::Var(Some(nam)) => nam == name,
-      Pattern::Ctr(.., args) => {
-        let mut ret = false;
-        for arg in args {
-          ret |= arg.occurs(name);
-        }
-        ret
-      }
-      Pattern::Num(..) => false,
-      Pattern::Tup(fst, snd) => fst.occurs(name) || snd.occurs(name),
-      Pattern::Dup(_, fst, snd) => fst.occurs(name) || snd.occurs(name),
-    }
+    self.bound_names().any(|x| x == name)
   }
 
-  pub fn names(&self) -> impl DoubleEndedIterator<Item = &Name> {
-    fn go<'a>(pat: &'a Pattern, set: &mut Vec<&'a Option<Name>>) {
+  pub fn bound_names(&self) -> impl DoubleEndedIterator<Item = &Name> {
+    fn go<'a>(pat: &'a Pattern, set: &mut Vec<&'a Name>) {
       match pat {
-        Pattern::Var(nam) => set.push(nam),
-        Pattern::Ctr(_, pats) => pats.iter().for_each(|pat| go(pat, set)),
-        Pattern::Tup(fst, snd) => {
-          go(fst, set);
-          go(snd, set);
-        }
-        Pattern::Num(MatchNum::Succ(Some(nam))) => {
-          set.push(nam);
-        }
-        Pattern::Num(_) => {}
-        Pattern::Dup(_, fst, snd) => {
+        Pattern::Var { nam } => {
+          set.push(nam)
+        },
+        Pattern::Ctr { nam, args } => {
+          args.iter_mut().for_each(|x| go(x, set));
+        },
+        Pattern::Num { mat } => {
+          todo!();
+        },
+        Pattern::Tup { fst, snd } => {
           go(fst, set);
           go(snd, set);
         },
+        Pattern::Sup { tag, fst, snd } => {
+          go(fst, set);
+          go(snd, set);
+        },
+        Pattern::Era => (),
       }
     }
     let mut set = Vec::new();
     go(self, &mut set);
-    set.into_iter().flat_map(|a| a.as_ref())
+    set.into_iter()
   }
 
-  pub fn names_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut Name> {
-    fn go<'a>(pat: &'a mut Pattern, set: &mut Vec<&'a mut Option<Name>>) {
+  pub fn bound_names_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut Name> {
+    fn go<'a>(pat: &'a mut Pattern, set: &mut Vec<&'a mut Name>) {
       match pat {
-        Pattern::Var(nam) => set.push(nam),
-        Pattern::Ctr(_, pats) => pats.iter_mut().for_each(|pat| go(pat, set)),
-        Pattern::Tup(fst, snd) => {
-          go(fst, set);
-          go(snd, set);
-        }
-        Pattern::Num(MatchNum::Succ(Some(nam))) => {
-          set.push(nam);
-        }
-        Pattern::Num(_) => {}
-        Pattern::Dup(_, fst, snd) => {
+        Pattern::Var { nam } => {
+          set.push(nam)
+        },
+        Pattern::Ctr { nam, args } => {
+          args.iter_mut().for_each(|x| go(x, set));
+        },
+        Pattern::Num { mat } => {
+          todo!();
+        },
+        Pattern::Tup { fst, snd } => {
           go(fst, set);
           go(snd, set);
         },
+        Pattern::Sup { tag, fst, snd } => {
+          go(fst, set);
+          go(snd, set);
+        },
+        Pattern::Era => (),
       }
     }
     let mut set = Vec::new();
     go(self, &mut set);
-    set.into_iter().flat_map(|a| a.as_mut())
-  }
-
-  pub fn is_detached_num_match(&self) -> bool {
-    if let Pattern::Num(num) = self {
-      match num {
-        MatchNum::Zero => true,
-        MatchNum::Succ(None) => true,
-        MatchNum::Succ(Some(_)) => false,
-      }
-    } else {
-      false
-    }
+    set.into_iter()
   }
 
   pub fn is_flat(&self) -> bool {
     match self {
-      Pattern::Var(_) => true,
-      Pattern::Ctr(_, args) => args.iter().all(|arg| matches!(arg, Pattern::Var(_))),
-      Pattern::Num(_) => true,
-      Pattern::Tup(fst, snd) => {
-        matches!(fst.as_ref(), Pattern::Var(_)) && matches!(snd.as_ref(), Pattern::Var(_))
-      }
-      Pattern::Dup(_, fst, snd) => {
-        matches!(fst.as_ref(), Pattern::Var(_)) && matches!(snd.as_ref(), Pattern::Var(_))
-      },
+      _ => todo!(),
     }
   }
 }
@@ -575,12 +565,12 @@ impl Definition {
 impl From<&Pattern> for Term {
   fn from(value: &Pattern) -> Self {
     match value {
-      Pattern::Var(None) => Term::Era,
-      Pattern::Var(Some(nam)) => Term::Var { nam: nam.clone() },
-      Pattern::Ctr(nam, pats) => Term::call(Term::Var { nam: nam.clone() }, pats.iter().map(Term::from)),
-      Pattern::Num(..) => todo!(),
-      Pattern::Tup(..) => todo!(),
-      Pattern::Dup(tag, fst, snd) => Term::Sup { tag: tag.clone(), fst: Box::new(fst.as_ref().into()), snd: Box::new(snd.as_ref().into())},
+        Pattern::Var { nam } => Term::Var { nam: nam.clone() },
+        Pattern::Ctr { nam, args } => todo!(),
+        Pattern::Num { mat } => todo!(),
+        Pattern::Tup { fst, snd } => Term::Tup { fst: Box::new(fst.as_ref().into()), snd: Box::new(snd.as_ref().into()) },
+        Pattern::Sup { tag, fst, snd } => Term::Sup { tag: tag.clone(), fst: Box::new(fst.as_ref().into()), snd: Box::new(snd.as_ref().into()) },
+        Pattern::Era => todo!(),
     }
   }
 }
