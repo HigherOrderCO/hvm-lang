@@ -24,36 +24,42 @@ impl Term {
 fn resolve_refs(term: &mut Term, def_names: &DefNames, scope: &mut HashMap<Name, usize>) {
   match term {
     Term::Lam { nam, bod, .. } => {
-      push_scope(nam.clone(), scope);
+      if let Some(nam) = nam {
+        push_scope(nam.clone(), scope);
+      }
       resolve_refs(bod, def_names, scope);
-      pop_scope(nam.clone(), scope);
-    }
-    Term::Let { pat: Pattern::Var(nam), val, nxt } => {
-      resolve_refs(val, def_names, scope);
-      push_scope(nam.clone(), scope);
-      resolve_refs(nxt, def_names, scope);
-      pop_scope(nam.clone(), scope);
+      if let Some(nam) = nam {
+        pop_scope(nam.clone(), scope);
+      }
     }
     Term::Let { pat, val, nxt } => {
       resolve_refs(val, def_names, scope);
 
-      for nam in pat.names() {
-        push_scope(Some(nam.clone()), scope)
+      for nam in pat.bound_names() {
+        push_scope(nam.clone(), scope)
       }
 
       resolve_refs(nxt, def_names, scope);
 
-      for nam in pat.names() {
-        pop_scope(Some(nam.clone()), scope)
+      for nam in pat.bound_names() {
+        pop_scope(nam.clone(), scope)
       }
     }
     Term::Dup { tag: _, fst, snd, val, nxt } => {
       resolve_refs(val, def_names, scope);
-      push_scope(fst.clone(), scope);
-      push_scope(snd.clone(), scope);
+      if let Some(fst) = fst {
+        push_scope(fst.clone(), scope);
+      }
+      if let Some(snd) = snd {
+        push_scope(snd.clone(), scope);
+      }
       resolve_refs(nxt, def_names, scope);
-      pop_scope(fst.clone(), scope);
-      pop_scope(snd.clone(), scope);
+      if let Some(snd) = snd {
+        pop_scope(snd.clone(), scope);
+      }
+      if let Some(fst) = fst {
+        pop_scope(fst.clone(), scope);
+      }
     }
 
     // If variable not defined, we check if it's a ref and swap if it is.
@@ -75,14 +81,12 @@ fn resolve_refs(term: &mut Term, def_names: &DefNames, scope: &mut HashMap<Name,
     Term::Match { scrutinee, arms } => {
       resolve_refs(scrutinee, def_names, scope);
       for (pat, term) in arms {
-        if let Pattern::Num(MatchNum::Succ(Some(nam))) = pat {
-          push_scope(nam.clone(), scope)
+        for i in pat.bound_names() {
+          push_scope(i.clone(), scope)
         }
-
         resolve_refs(term, def_names, scope);
-
-        if let Pattern::Num(MatchNum::Succ(Some(nam))) = pat {
-          pop_scope(nam.clone(), scope)
+        for i in pat.bound_names().rev() {
+          pop_scope(i.clone(), scope)
         }
       }
     }
@@ -90,18 +94,14 @@ fn resolve_refs(term: &mut Term, def_names: &DefNames, scope: &mut HashMap<Name,
   }
 }
 
-fn push_scope(name: Option<Name>, scope: &mut HashMap<Name, usize>) {
-  if let Some(name) = name {
-    let var_scope = scope.entry(name.clone()).or_default();
-    *var_scope += 1;
-  }
+fn push_scope(name: Name, scope: &mut HashMap<Name, usize>) {
+  let var_scope = scope.entry(name.clone()).or_default();
+  *var_scope += 1;
 }
 
-fn pop_scope(name: Option<Name>, scope: &mut HashMap<Name, usize>) {
-  if let Some(name) = name {
-    let var_scope = scope.entry(name.clone()).or_default();
-    *var_scope -= 1;
-  }
+fn pop_scope(name: Name, scope: &mut HashMap<Name, usize>) {
+  let var_scope = scope.entry(name.clone()).or_default();
+  *var_scope -= 1;
 }
 
 fn is_var_in_scope(name: Name, scope: &mut HashMap<Name, usize>) -> bool {

@@ -190,7 +190,7 @@ where
     let let_ = just(Token::Let)
       .ignore_then(pattern())
       .validate(|pat, span, emit| {
-        if matches!(&pat, Pattern::Num(..)) {
+        if matches!(&pat, Pattern::Num { .. }) {
           emit.emit(Rich::custom(span, "Numbers not supported in let."));
         }
         pat
@@ -204,7 +204,7 @@ where
 
     // pat: term
     let match_arm = pattern()
-      .or(just(Token::Add).map(|_| Pattern::Num(MatchNum::Succ(None))))
+      .or(just(Token::Add).map(|_| Pattern::Num { mat: MatchNum::Succ(Box::new(Pattern::Era)) } ))
       .then_ignore(just(Token::Colon))
       .then(term.clone())
       .boxed();
@@ -232,7 +232,10 @@ where
       .then_ignore(just(Token::RBracket))
       .map(|((cond, zero), succ)| Term::Match {
         scrutinee: Box::new(Term::Var { nam: cond.clone() }),
-        arms: vec![(Pattern::Num(MatchNum::Zero), zero), (Pattern::Num(MatchNum::Succ(None)), succ)],
+        arms: vec![
+          (Pattern::Num { mat: MatchNum::Zero }, zero), 
+          (Pattern::Num { mat: MatchNum::Succ(Box::new(Pattern::Era)) }, succ)
+        ],
       })
       .boxed();
 
@@ -284,11 +287,11 @@ where
   I: ValueInput<'a, Token = Token, Span = SimpleSpan>,
 {
   recursive(|pattern| {
-    let var = name_or_era().map(Pattern::Var).boxed();
+    let var = name_or_era().map(|nam| if let Some(nam) = nam { Pattern::Var { nam} } else { Pattern::Era }).boxed();
 
     let ctr = name()
       .then(pattern.clone().repeated().collect())
-      .map(|(nam, xs)| Pattern::Ctr(nam, xs))
+      .map(|(nam, xs)| Pattern::Ctr { nam, args: xs })
       .delimited_by(just(Token::LParen), just(Token::RParen))
       .boxed();
 
@@ -297,13 +300,21 @@ where
       .then_ignore(just(Token::Comma))
       .then(pattern.clone())
       .delimited_by(just(Token::LParen), just(Token::RParen))
-      .map(|(fst, snd)| Pattern::Tup(Box::new(fst), Box::new(snd)))
+      .map(|(fst, snd)| Pattern::Tup { fst: Box::new(fst), snd: Box::new(snd) })
       .boxed();
 
-    let zero = select!(Token::Num(0) => Pattern::Num(MatchNum::Zero));
+    let zero = select!(Token::Num(0) => Pattern::Num { mat: MatchNum::Zero });
 
     let succ =
-      just(Token::Add).ignore_then(name_or_era()).map(|nam| Pattern::Num(MatchNum::Succ(Some(nam)))).boxed();
+      just(Token::Add).ignore_then(name_or_era()).map(|nam| {
+        Pattern::Num { mat: MatchNum::Succ(Box::new(
+          if let Some(nam) = nam {
+            Pattern::Var { nam }
+          } else {
+            Pattern::Implicit
+          }
+        ))}
+      }).boxed();
 
     choice((zero, succ, var, ctr, tup))
   })

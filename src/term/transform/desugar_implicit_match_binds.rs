@@ -39,7 +39,7 @@ impl Term {
 
         for (pat, body) in arms {
           match pat {
-            Pattern::Var(_) => (),
+            Pattern::Var { .. } => (),
             Pattern::Ctr(nam, pat_args) => {
               let adt = &ctrs[nam];
               let Adt { ctrs } = &adts[adt];
@@ -56,13 +56,13 @@ impl Term {
               // Implicit num arg
               *p = Some(Some(Name(format!("{scrutinee}-1"))));
             }
-            Pattern::Tup(..) => (),
-            Pattern::Dup(..) => (),
+            Pattern::Tup { .. } => (),
+            Pattern::Dup { .. } => (),
           }
           body.desugar_implicit_match_binds(ctrs, adts);
         }
       }
-      Term::Let { pat: Pattern::Var(_), val: fst, nxt: snd }
+      Term::Let { pat: Pattern::Var { .. }, val: fst, nxt: snd }
       | Term::App { fun: fst, arg: snd, .. }
       | Term::Dup { val: fst, nxt: snd, .. }
       | Term::Tup { fst, snd }

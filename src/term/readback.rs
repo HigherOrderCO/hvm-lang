@@ -18,7 +18,7 @@ pub enum SignedTerm<'term> {
 pub type WireUid = usize;
 
 pub enum TermHole<'term> {
-  Variable(LoanedMut<'term, Term>, &'term mut Option<Name>),
+  Variable(LoanedMut<'term, Term>, &'term mut Pattern),
   Term(LoanedMut<'term, Term>),
 }
 
@@ -29,7 +29,6 @@ impl<'term> TermHole<'term> {
   fn erase(self) -> bool {
     match self {
       TermHole::Variable(a, b) => {
-        *b = None;
         // TODO don't drop
         core::mem::forget(a);
         true
@@ -52,8 +51,8 @@ impl<'term> From<LoanedMut<'term, Term>> for TermHole<'term> {
     Self::Term(value)
   }
 }
-impl<'term> From<(LoanedMut<'term, Term>, &'term mut Option<Name>)> for TermHole<'term> {
-  fn from(value: (LoanedMut<'term, Term>, &'term mut Option<Name>)) -> Self {
+impl<'term> From<(LoanedMut<'term, Term>, &'term mut Pattern)> for TermHole<'term> {
+  fn from(value: (LoanedMut<'term, Term>, &'term mut Pattern)) -> Self {
     Self::Variable(value.0, value.1)
   }
 }
@@ -83,18 +82,18 @@ impl Book {
 
 impl Term {
   pub fn fix_names(&mut self, id_counter: &mut u64, book: &Book) {
-    fn fix_name(nam: &mut Option<Name>, id_counter: &mut u64, bod: &mut Term) {
-      if let Some(nam) = nam {
-        let name = Name::from_num(*id_counter);
-        *id_counter += 1;
-        bod.subst(nam, &Term::Var { nam: name.clone() });
-        *nam = name;
-      }
+    fn fix_name(nam: &mut Name, id_counter: &mut u64, bod: &mut Term) {
+      let name = Name::from_num(*id_counter);
+      *id_counter += 1;
+      bod.subst(nam, &Term::Var { nam: name.clone() });
+      *nam = name;
     }
 
     match self {
       Term::Lam { nam, bod, .. } => {
-        fix_name(nam, id_counter, bod);
+        if let Some(nam) = nam {
+          fix_name(nam, id_counter, bod);
+        }
         bod.fix_names(id_counter, book);
       }
       Term::Ref { def_id } => {
@@ -108,8 +107,12 @@ impl Term {
       }
       Term::Dup { fst, snd, val, nxt, .. } => {
         val.fix_names(id_counter, book);
-        fix_name(fst, id_counter, nxt);
-        fix_name(snd, id_counter, nxt);
+        if let Some(fst) = fst {
+          fix_name(fst, id_counter, nxt);
+        };
+        if let Some(snd) = snd {
+          fix_name(snd, id_counter, nxt);
+        };
         nxt.fix_names(id_counter, book);
       }
       Term::Chn { bod, .. } => bod.fix_names(id_counter, book),
@@ -124,9 +127,7 @@ impl Term {
         scrutinee.fix_names(id_counter, book);
 
         for (rule, term) in arms {
-          if let Pattern::Num(MatchNum::Succ(Some(nam))) = rule {
-            fix_name(nam, id_counter, term);
-          }
+          rule.bound_names_mut().for_each(|nam| fix_name(nam, id_counter, term));
 
           term.fix_names(id_counter, book)
         }
@@ -224,16 +225,8 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
         let mat = Term::Match {
           scrutinee: hole(),
           arms: vec![
-            (Pattern::Num(crate::term::MatchNum::Zero), Term::Let {
-              pat: Pattern::Var(None),
-              val: Box::new(Term::Era),
-              nxt: hole(),
-            }),
-            (Pattern::Num(crate::term::MatchNum::Succ(Some(Some(pred)))), Term::Let {
-              pat: Pattern::Var(None),
-              val: Box::new(Term::Era),
-              nxt: hole(),
-            }),
+            (Pattern::Num { mat: crate::term::MatchNum::Zero } , Term::default()),
+            (Pattern::Num { mat: crate::term::MatchNum::Succ(Box::new(Pattern::Var { nam: pred })) }, Term::default()),
           ],
         };
         let ((scrutinee, zero, succ), mat) = LoanedMut::loan_with(mat, |mat, l| {
@@ -284,27 +277,27 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
           } else {
             Some((port.lab as u32 >> 1) - 1)
           });
-          let fst_name = Some(self.generate_name());
-          let snd_name = Some(self.generate_name());
-          let snd_var = Term::Var { nam: snd_name.as_ref().unwrap().clone() };
+          let fst_name = self.generate_name();
+          let snd_name = self.generate_name();
+          let snd_var = Term::Var { nam: snd_name.clone() };
           let snd_box = LoanedMut::new(snd_var);
           let ((val, fst, snd, nxt), dup) = LoanedMut::<'term, Term>::loan_with(
-            Term::Let { pat: Pattern::Dup(
-              tag, 
-              Box::new(Pattern::Var(fst_name.clone())),
-              Box::new(Pattern::Var(snd_name)),
-            ), val: hole(), nxt: hole() }, 
+            Term::Let { pat: Pattern::Sup {
+              tag: tag, 
+              fst: Box::new(Pattern::Var { nam: fst_name.clone() }),
+              snd: Box::new(Pattern::Var { nam: snd_name }),
+            }, val: hole(), nxt: hole() }, 
             |term: &mut Term, l| {
-              let Term::Let { pat: Pattern::Dup(tag, fst, snd), val, nxt } = term else { unreachable!() };
+              let Term::Let { pat: Pattern::Sup { tag, fst, snd }, val, nxt } = term else { unreachable!() };
               (l.loan_mut(val), l.loan_mut(fst), l.loan_mut(snd), l.loan_mut(nxt))
             }
           );
-          let Pattern::Var(fst) = fst else { unreachable!() };
-          let Pattern::Var(snd) = snd else { unreachable!() };
+          let Pattern::Var { nam: fst } = fst else { unreachable!() };
+          let Pattern::Var { nam: snd } = snd else { unreachable!() };
           term.place(val);
-          *nxt = Term::Var { nam: fst_name.unwrap() };
-          self.read_pos(port.p1, TermHole::Variable(dup, fst));
-          self.read_pos(port.p2, TermHole::Variable(snd_box, snd));
+          *nxt = Term::Var { nam: fst_name };
+          self.read_pos(port.p1, dup.into());
+          self.read_pos(port.p2, snd_box.into());
 
         }
       }
@@ -364,7 +357,7 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
           *into = Term::Lam { tag, nam: Some(nam), bod: hole() };
           // Fill it
           let Term::Lam { ref mut bod, ref mut nam, .. } = into else { unreachable!() };
-          self.read_pos(port.p1, (var_box, nam).into());
+          self.read_pos(port.p1, var_box.into());
           self.read_neg(port.p2, bod);
         } else {
           if port.lab != 1 {
@@ -519,15 +512,15 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
                 match arm_term {
                   Term::Lam { nam, bod, .. } => {
                     args.push(match nam {
-                      Some(x) => Pattern::Var(Some(x.clone())),
-                      None => Pattern::Var(None),
+                      Some(x) => Pattern::Var { nam: x.clone() },
+                      None => Pattern::Era,
                     });
                     arm_term = &mut **bod;
                   }
                   _ => unreachable!(),
                 }
               }
-              arms.push((Pattern::Ctr(ctr.0.clone(), args), arm_term));
+              arms.push((Pattern::Ctr { nam: ctr.0.clone(), args }, arm_term));
               cur = &mut **fun;
             }
             _ => return self.error(ReadbackError::InvalidAdtMatch),

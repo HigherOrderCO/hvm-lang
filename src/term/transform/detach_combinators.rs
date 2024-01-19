@@ -113,7 +113,7 @@
 //       Self::Let { pat: Pattern::Var(Some(Name(n))), val, nxt } => {
 //         val.occurs_check(name) || (n != name && nxt.occurs_check(name))
 //       }
-//       Self::Let { pat: Pattern::Tup(..), .. } => todo!(),
+//       Self::Let { pat: Pattern::Tup { .. }, .. } => todo!(),
 //       Self::Let { .. } => todo!(),
 //       Self::Dup { tag: _, fst, snd, val, nxt } => {
 //         val.occurs_check(name)

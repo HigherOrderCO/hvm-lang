@@ -14,7 +14,7 @@ impl Book {
 impl Term {
   pub fn desugar_let_destructors(&mut self) {
     match self {
-      Term::Let { pat: Pattern::Var(_), val: fst, nxt: snd }
+      Term::Let { pat: Pattern::Var { .. }, val: fst, nxt: snd }
       | Term::App { fun: fst, arg: snd, .. }
       | Term::Tup { fst, snd }
       | Term::Dup { val: fst, nxt: snd, .. }

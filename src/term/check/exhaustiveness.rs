@@ -39,8 +39,8 @@ fn check_pattern(
           let pat = &rules[rule_idx].pats[match_path.len()];
           match pat {
             // Rules with a var pattern are relevant to all constructors.
-            Pattern::Var(_) => next_rules_to_check.values_mut().for_each(|x| x.push(rule_idx)),
-            Pattern::Ctr(ctr_nam, _) => next_rules_to_check.get_mut(ctr_nam).unwrap().push(rule_idx),
+            Pattern::Var { .. } => next_rules_to_check.values_mut().for_each(|x| x.push(rule_idx)),
+            Pattern::Ctr { nam: ctr_nam, .. } => next_rules_to_check.get_mut(ctr_nam).unwrap().push(rule_idx),
             // We already type checked, so no other patterns will appear here.
             _ => unreachable!(),
           }
@@ -54,18 +54,19 @@ fn check_pattern(
         for rule_idx in rules_to_check {
           let pat = &rules[rule_idx].pats[match_path.len()];
           match pat {
-            Pattern::Var(_) => next_rules_to_check.values_mut().for_each(|x| x.push(rule_idx)),
-            Pattern::Num(MatchNum::Zero) => {
-              next_rules_to_check.get_mut(&Name::new("0")).unwrap().push(rule_idx);
-            }
-            Pattern::Num(MatchNum::Succ { .. }) => {
-              next_rules_to_check.get_mut(&Name::new("+")).unwrap().push(rule_idx);
-            }
+            Pattern::Var { .. } => next_rules_to_check.values_mut().for_each(|x| x.push(rule_idx)),
+            Pattern::Num { mat  } => {
+              next_rules_to_check.get_mut(&match mat {
+                MatchNum::Zero => Name::new("0"),
+                MatchNum::Succ(_) => Name::new("+"),
+              }).unwrap().push(rule_idx);
+            },
             _ => unreachable!(),
           }
         }
         next_rules_to_check
-      }
+      },
+      _ => todo!(),
     };
 
     // Check that each constructor matches at least one rule and then check the next pattern recursively.
@@ -105,6 +106,7 @@ fn first_ctr_of_type(typ: &Type, adts: &BTreeMap<Name, Adt>) -> String {
   match typ {
     Type::Any => "_".to_string(),
     Type::Tup => "(_,_)".to_string(),
+    Type::Sup => "{_,_}".to_string(),
     Type::Num => "0".to_string(),
     Type::Adt(adt_name) => adts[adt_name].ctrs.keys().next().unwrap().to_string(),
   }

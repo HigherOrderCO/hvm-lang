@@ -145,7 +145,7 @@ fn term_to_affine(term: &mut Term, var_uses: &mut HashMap<Name, u64>, let_bodies
       *term = std::mem::take(nxt.as_mut());
     }
 
-    Term::Let { pat: Pattern::Var(None), nxt, .. } => {
+    Term::Let { pat: Pattern::Era, nxt, .. } => {
       *term = *nxt.clone();
     }
 
@@ -193,7 +193,7 @@ fn term_to_affine(term: &mut Term, var_uses: &mut HashMap<Name, u64>, let_bodies
           Pattern::Num(MatchNum::Succ(Some(nam))) => {
             term_with_bind_to_affine(term, nam, var_uses, let_bodies)
           }
-          Pattern::Num(_) => term_to_affine(term, var_uses, let_bodies),
+          Pattern::Num { .. } => term_to_affine(term, var_uses, let_bodies),
           _ => unreachable!(),
         }
       }

@@ -1,15 +1,16 @@
 use hvmc::ast::num_to_str;
 use indexmap::IndexMap;
+use itertools::Itertools;
 use shrinkwraprs::Shrinkwrap;
 use std::collections::{BTreeMap, HashMap};
 
-//pub mod check;
+pub mod check;
 pub mod display;
 pub mod encoder;
 pub mod load_book;
 pub mod parser;
 pub mod readback;
-//pub mod transform;
+pub mod transform;
 
 /// The representation of a program.
 #[derive(Debug, Clone, Default)]
@@ -77,14 +78,6 @@ pub enum Tag {
 
 #[derive(Debug, Clone, Default)]
 pub enum Term {
-  Lam {
-    tag: Tag,
-    nam: Option<Name>,
-    bod: Box<Term>,
-  },
-  Var {
-    nam: Name,
-  },
   /// Like a scopeless lambda, where the variable can occur outside the body
   Chn {
     tag: Tag,
@@ -95,19 +88,30 @@ pub enum Term {
   Lnk {
     nam: Name,
   },
-  Let {
-    pat: Pattern,
-    val: Box<Term>,
-    nxt: Box<Term>,
+  Sup {
+    tag: Tag,
+    fst: Box<Term>,
+    snd: Box<Term>,
   },
   App {
     tag: Tag,
     fun: Box<Term>,
     arg: Box<Term>,
   },
-  Tup {
-    fst: Box<Term>,
-    snd: Box<Term>,
+  Let {
+    pat: Pattern,
+    val: Box<Term>,
+    nxt: Box<Term>,
+  },
+
+
+  Var {
+    nam: Name,
+  },
+  Lam {
+    tag: Tag,
+    nam: Option<Name>,
+    bod: Box<Term>,
   },
   Dup {
     tag: Tag,
@@ -116,11 +120,11 @@ pub enum Term {
     val: Box<Term>,
     nxt: Box<Term>,
   },
-  Sup {
-    tag: Tag,
+  Tup {
     fst: Box<Term>,
     snd: Box<Term>,
   },
+
   Num {
     val: u64,
   },
@@ -165,6 +169,8 @@ pub enum Pattern {
     fst: Box<Pattern>, 
     snd: Box<Pattern>
   },
+  /// Implicit variable.
+  Implicit,
   Era,
 }
 
@@ -343,15 +349,7 @@ impl Term {
         scrutinee.subst(from, to);
 
         for (rule, term) in arms {
-          let can_subst;
-
-          if let Pattern::Num { mat: MatchNum::Succ(Some(Some(nam))) } = rule {
-            can_subst = nam != from
-          } else {
-            can_subst = true
-          };
-
-          if can_subst {
+          if !rule.bound_names().contains(from) {
             term.subst(from, to);
           }
         }
@@ -389,7 +387,7 @@ impl Term {
           let mut new_scope = IndexMap::new();
           go(nxt, &mut new_scope);
 
-          for bind in pat.names() {
+          for bind in pat.bound_names() {
             new_scope.remove(bind);
           }
 
@@ -420,7 +418,7 @@ impl Term {
             let mut new_scope = IndexMap::new();
             go(term, &mut new_scope);
 
-            if let Pattern::Num(MatchNum::Succ(Some(Some(nam)))) = rule {
+            for nam in rule.bound_names() {
               new_scope.remove(nam);
             }
 
@@ -444,37 +442,9 @@ impl Term {
     mut succ_label: Option<Name>,
     mut succ_term: Self,
   ) -> Self {
-    let zero = (Pattern::Num(MatchNum::Zero), zero_term);
-
-    if let Term::Var { nam } = &scrutinee {
-      if let Some(label) = &succ_label {
-        let new_label = Name(format!("{}-1", nam));
-        succ_term.subst(label, &Term::Var { nam: new_label.clone() });
-        succ_label = Some(new_label);
-      }
-
-      let succ = (Pattern::Num(MatchNum::Succ(Some(succ_label))), succ_term);
-      Term::Match { scrutinee: Box::new(scrutinee), arms: vec![zero, succ] }
-    } else {
-      let match_bind = succ_label.clone().unwrap_or_else(|| Name::new("*"));
-
-      if let Some(label) = &succ_label {
-        let new_label = Name(format!("{}-1", label));
-        succ_term.subst(label, &Term::Var { nam: new_label.clone() });
-        succ_label = Some(new_label);
-      }
-
-      let succ = (Pattern::Num(MatchNum::Succ(Some(succ_label))), succ_term);
-
-      Term::Let {
-        pat: Pattern::Var(Some(match_bind.clone())),
-        val: Box::new(scrutinee),
-        nxt: Box::new(Term::Match {
-          scrutinee: Box::new(Term::Var { nam: match_bind }),
-          arms: vec![zero, succ],
-        }),
-      }
-    }
+    let zero = (Pattern::Num { mat: MatchNum::Zero } , zero_term);
+    let succ = (Pattern::Num { mat: MatchNum::Succ(Box::new(Pattern::Var { nam: succ_label.unwrap() }))}, succ_term);
+    Term::Match { scrutinee: Box::new(scrutinee), arms: vec![zero, succ] }
   }
 }
 
@@ -490,7 +460,7 @@ impl Pattern {
           set.push(nam)
         },
         Pattern::Ctr { nam, args } => {
-          args.iter_mut().for_each(|x| go(x, set));
+          args.iter().for_each(|x| go(x, set));
         },
         Pattern::Num { mat } => {
           todo!();
@@ -504,6 +474,7 @@ impl Pattern {
           go(snd, set);
         },
         Pattern::Era => (),
+        Pattern::Implicit => (),
       }
     }
     let mut set = Vec::new();
@@ -532,6 +503,7 @@ impl Pattern {
           go(snd, set);
         },
         Pattern::Era => (),
+        Pattern::Implicit => (),
       }
     }
     let mut set = Vec::new();
@@ -571,6 +543,7 @@ impl From<&Pattern> for Term {
         Pattern::Tup { fst, snd } => Term::Tup { fst: Box::new(fst.as_ref().into()), snd: Box::new(snd.as_ref().into()) },
         Pattern::Sup { tag, fst, snd } => Term::Sup { tag: tag.clone(), fst: Box::new(fst.as_ref().into()), snd: Box::new(snd.as_ref().into()) },
         Pattern::Era => todo!(),
+        Pattern::Implicit => todo!(),
     }
   }
 }

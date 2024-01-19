@@ -98,7 +98,7 @@ impl Tag {
 impl fmt::Display for Pattern {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Pattern::Var(x) => write!(f, x),
+      Pattern::Var { nam } => write!(f, "{}", nam),
       Pattern::Ctr {
         nam, args
         } => {
@@ -106,8 +106,9 @@ impl fmt::Display for Pattern {
       }
       Pattern::Num { mat } => write!(f, "{mat}"),
       Pattern::Tup { fst, snd } => write!(f, "({}, {})", fst, snd,),
-      Pattern::Dup { tag, fst, snd } => write!(f, "{} {{{} {}}}", tag.display(), fst, snd),
-      Pattern::Era => write!(f, "*")
+      Pattern::Sup { tag, fst, snd } => write!(f, "{} {{{} {}}}", tag.display(), fst, snd),
+      Pattern::Era => write!(f, "*"),
+      Pattern::Implicit => Ok(()),
     }
   }
 }
@@ -139,9 +140,7 @@ impl fmt::Display for MatchNum {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       MatchNum::Zero => write!(f, "0"),
-      MatchNum::Succ(None) => write!(f, "+"),
-      MatchNum::Succ(Some(None)) => write!(f, "+*"),
-      MatchNum::Succ(Some(Some(nam))) => write!(f, "+{nam}"),
+      MatchNum::Succ(pat) => write!(f, "+{pat}"),
     }
   }
 }

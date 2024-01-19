@@ -33,16 +33,13 @@ impl Pattern {
     let mut check = vec![self];
     while let Some(pat) = check.pop() {
       match pat {
-        Pattern::Ctr(nam, args) => {
+        Pattern::Ctr { nam, args } => {
           if !is_ctr(nam) {
             unbounds.insert(nam.clone());
           }
           check.extend(args.iter());
         }
-        Pattern::Var(_) => (),
-        Pattern::Num(_) => (),
-        Pattern::Tup(_, _) => (),
-        Pattern::Dup(_, _, _) => (),
+        _ => ()
       }
     }
     unbounds

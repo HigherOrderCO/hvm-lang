@@ -56,9 +56,9 @@ fn unique_var_names(term: &mut Term, name_map: &mut UniqueNameScope, name_count:
     Term::Match { scrutinee, arms } => {
       unique_var_names(scrutinee, name_map, name_count);
       for (pat, term) in arms {
-        pat.names().for_each(|nam| name_map.push(Some(nam), name_count));
+        pat.bound_names().for_each(|nam| name_map.push(Some(nam), name_count));
         unique_var_names(term, name_map, name_count);
-        pat.names_mut().rev().for_each(|nam| *nam = name_map.pop(Some(nam)).unwrap());
+        pat.bound_names_mut().rev().for_each(|nam| *nam = name_map.pop(Some(nam)).unwrap());
       }
     }
 

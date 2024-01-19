@@ -294,8 +294,9 @@ impl<'t, 'l> Encoder<'t, 'l> {
       Term::Match { scrutinee, arms } => {
         // It must be a zero-succ match.
         // because other matches get desugared
-        debug_assert!(matches!(arms[0].0, Pattern::Num(MatchNum::Zero)));
-        debug_assert!(matches!(arms[1].0, Pattern::Num(MatchNum::Succ(None))));
+        //debug_assert!(matches!(arms[0].0, Pattern::Num { MatchNum::Zero }));
+        //debug_assert!(matches!(arms[1].0, Pattern::Num { MatchNum::Succ(None))));
+        todo!();
         let zero = &arms[0].1;
         let succ = &arms[1].1;
 

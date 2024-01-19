@@ -41,7 +41,7 @@ fn matches_together(a: &[Pattern], b: &[Pattern]) -> (bool, bool) {
           same_shape = false;
         }
       }
-      (Pattern::Ctr(..) | Pattern::Num(_) | Pattern::Tup(..) | Pattern::Dup(..), Pattern::Var(..)) => {
+      (Pattern::Ctr { .. } | Pattern::Num { .. } | Pattern::Tup { .. } | Pattern::Dup { .. }, Pattern::Var { .. }) => {
         same_shape = false;
       }
       (Pattern::Num(a_num), Pattern::Num(b_num)) => {
@@ -51,15 +51,15 @@ fn matches_together(a: &[Pattern], b: &[Pattern]) -> (bool, bool) {
         }
       }
       (
-        Pattern::Ctr(..) | Pattern::Num(..) | Pattern::Dup(..) | Pattern::Tup(..),
-        Pattern::Ctr(..) | Pattern::Num(..) | Pattern::Dup(..) | Pattern::Tup(..),
+        Pattern::Ctr { .. } | Pattern::Num { .. } | Pattern::Dup { .. } | Pattern::Tup { .. },
+        Pattern::Ctr { .. } | Pattern::Num { .. } | Pattern::Dup { .. } | Pattern::Tup { .. },
       ) => {
         if std::mem::discriminant(a) != std::mem::discriminant(b) {
           matches_together = false;
           same_shape = false;
         }
       }
-      (Pattern::Var(..), _) => (),
+      (Pattern::Var { .. }, _) => (),
     }
   }
   (matches_together, same_shape)
@@ -124,7 +124,7 @@ fn make_old_rule(pats: &[Pattern], new_split_def_id: DefId) -> Rule {
         let mut new_arg_args = Vec::new();
         for field in arg_args {
           let var_name = match field {
-            Pattern::Ctr(..) | Pattern::Tup(..) | Pattern::Dup(..) | Pattern::Num(..) | Pattern::Var(None) => {
+            Pattern::Ctr { .. } | Pattern::Tup { .. } | Pattern::Dup { .. } | Pattern::Num { .. } | Pattern::Era => {
               make_var_name(&mut var_count)
             }
             Pattern::Var(Some(nam)) => nam.clone(),
@@ -141,7 +141,7 @@ fn make_old_rule(pats: &[Pattern], new_split_def_id: DefId) -> Rule {
         new_body_args.push(Term::Var { nam: snd.clone() });
         let fst = Pattern::Var(Some(fst));
         let snd = Pattern::Var(Some(snd));
-        new_pats.push(Pattern::Tup(Box::new(fst), Box::new(snd)));
+        new_pats.push(Pattern::Tup { fst: Box::new(fst), snd: Box::new(snd) });
       }
       Pattern::Dup(tag, _, _) => {
         let fst = make_var_name(&mut var_count);
@@ -150,14 +150,14 @@ fn make_old_rule(pats: &[Pattern], new_split_def_id: DefId) -> Rule {
         new_body_args.push(Term::Var { nam: snd.clone() });
         let fst = Pattern::Var(Some(fst));
         let snd = Pattern::Var(Some(snd));
-        new_pats.push(Pattern::Dup(tag.clone(), Box::new(fst), Box::new(snd)));
+        new_pats.push(Pattern::Dup { tag: tag.clone(), fst: Box::new(fst), snd: Box::new(snd) });
       }
-      Pattern::Var(None) => todo!(),
+      Pattern::Era => todo!(),
       Pattern::Var(Some(nam)) => {
         new_pats.push(Pattern::Var(Some(nam.clone())));
         new_body_args.push(Term::Var { nam: nam.clone() });
       }
-      Pattern::Num(_) => {
+      Pattern::Num { .. } => {
         // How to do this if num can be either a number or some sort of lambda? add a match? separate both cases?
         todo!();
       }
@@ -181,51 +181,51 @@ fn make_split_rule(old_rule: &Rule, other_rule: &Rule, def_names: &DefNames) -> 
   for (rule_arg, other_arg) in old_rule.pats.iter().zip(&other_rule.pats) {
     match (rule_arg, other_arg) {
       // We checked before that these two have the same constructor and match together
-      (Pattern::Ctr(_, _), Pattern::Ctr(_, other_arg_args)) => {
+      (Pattern::Ctr { .. }, Pattern::Ctr { args: other_arg_args, .. }) => {
         for other_field in other_arg_args {
           new_pats.push(other_field.clone());
         }
       }
-      (Pattern::Ctr(rule_arg_name, rule_arg_args), Pattern::Var(Some(other_arg))) => {
+      (Pattern::Ctr { nam: rule_arg_name, args: rule_arg_args }, Pattern::Var(Some(other_arg))) => {
         let mut new_ctr_args = vec![];
         for _ in 0 .. rule_arg_args.len() {
           let new_nam = make_var_name(&mut var_count);
           new_ctr_args.push(Term::Var { nam: new_nam.clone() });
-          new_pats.push(Pattern::Var(Some(new_nam)));
+          new_pats.push(Pattern::Var { nam: new_nam });
         }
         let rule_arg_def_id = def_names.def_id(rule_arg_name).unwrap();
         let new_ctr = Term::call(Term::Ref { def_id: rule_arg_def_id }, new_ctr_args);
         new_body.subst(other_arg, &new_ctr);
       }
       // Since numbers don't have subpatterns this should be unreachable.
-      (Pattern::Num(..), _) => unreachable!(),
-      (Pattern::Tup(_, _), Pattern::Tup(fst, snd)) => {
+      (Pattern::Num { .. }, _) => unreachable!(),
+      (Pattern::Tup(_, _), Pattern::Tup { fst, snd }) => {
         new_pats.push(*fst.clone());
         new_pats.push(*snd.clone());
       }
-      (Pattern::Tup(..), Pattern::Var(Some(other_arg))) => {
+      (Pattern::Tup { .. }, Pattern::Var { nam: other_arg }) => {
         let fst_nam = make_var_name(&mut var_count);
         let snd_nam = make_var_name(&mut var_count);
         let fst_arg = Term::Var { nam: fst_nam.clone() };
         let snd_arg = Term::Var { nam: snd_nam.clone() };
-        new_pats.push(Pattern::Var(Some(fst_nam)));
-        new_pats.push(Pattern::Var(Some(snd_nam)));
+        new_pats.push(Pattern::Var { nam: fst_nam });
+        new_pats.push(Pattern::Var { nam: snd_nam });
         let new_ctr = Term::Tup { fst: Box::new(fst_arg), snd: Box::new(snd_arg) };
         new_body.subst(other_arg, &new_ctr);
       }
-      (Pattern::Var(..), _) => new_pats.push(other_arg.clone()),
+      (Pattern::Var { .. }, _) => new_pats.push(other_arg.clone()),
       // Unreachable cases, we only call this function if we know the two patterns match together
-      (Pattern::Ctr(..) | Pattern::Tup(..), Pattern::Ctr(..) | Pattern::Num(..) | Pattern::Tup(..)) => {
+      (Pattern::Ctr { .. } | Pattern::Tup { .. }, Pattern::Ctr { .. } | Pattern::Num { .. } | Pattern::Tup { .. }) => {
         unreachable!()
       }
-      (Pattern::Ctr(_, ctr_fields), Pattern::Var(None)) => {
+      (Pattern::Ctr(_, ctr_fields), Pattern::Era) => {
         for _ in ctr_fields {
-          new_pats.push(Pattern::Var(None));
+          new_pats.push(Pattern::Era);
         }
       }
-      (Pattern::Tup(..), Pattern::Var(None)) => {
-        new_pats.push(Pattern::Var(None));
-        new_pats.push(Pattern::Var(None));
+      (Pattern::Tup { .. }, Pattern::Era) => {
+        new_pats.push(Pattern::Era);
+        new_pats.push(Pattern::Era);
       }
       _ => todo!(),
     }

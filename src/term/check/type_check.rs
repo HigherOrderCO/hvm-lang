@@ -7,6 +7,7 @@ pub enum Type {
   Any,
   Tup,
   Num,
+  Sup,
   Adt(Name),
 }
 
@@ -45,7 +46,7 @@ pub fn infer_arg_type<'a>(
   let mut arg_type = Type::Any;
   for pat in pats {
     let pat_type = match pat {
-      Pattern::Var(_) => Type::Any,
+      Pattern::Var { .. } => Type::Any,
       Pattern::Ctr(ctr_nam, _) => {
         if let Some(adt_nam) = ctrs.get(ctr_nam) {
           Type::Adt(adt_nam.clone())
@@ -53,9 +54,9 @@ pub fn infer_arg_type<'a>(
           return Err(format!("Unknown constructor '{ctr_nam}'"));
         }
       }
-      Pattern::Tup(..) => Type::Tup,
-      Pattern::Dup(..) => todo!(),
-      Pattern::Num(..) => Type::Num,
+      Pattern::Tup { .. } => Type::Tup,
+      Pattern::Dup { .. } => Type::Sup,
+      Pattern::Num { .. } => Type::Num,
     };
     unify(pat_type, &mut arg_type)?
   }
@@ -79,6 +80,7 @@ impl fmt::Display for Type {
       Type::Any => write!(f, "any"),
       Type::Tup => write!(f, "tup"),
       Type::Num => write!(f, "num"),
+      Type::Sup => write!(f, "sup"),
       Type::Adt(nam) => write!(f, "{nam}"),
     }
   }

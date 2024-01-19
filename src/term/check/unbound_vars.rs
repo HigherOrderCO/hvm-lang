@@ -56,7 +56,7 @@ pub fn check_uses<'a>(
     Term::Lnk { nam } => {
       globals.entry(nam).or_default().1 = true;
     }
-    Term::Let { pat: Pattern::Var(nam), val, nxt } => {
+    Term::Let { pat: Pattern::Var { nam }, val, nxt } => {
       check_uses(val, scope, globals)?;
       push_scope(nam.as_ref(), scope);
       check_uses(nxt, scope, globals)?;

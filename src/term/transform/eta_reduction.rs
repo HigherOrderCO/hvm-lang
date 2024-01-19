@@ -43,7 +43,6 @@ impl Term {
       Term::Match { scrutinee, arms } => {
         scrutinee.eta_reduction();
         for (pat, term) in arms {
-          debug_assert!(pat.is_detached_num_match());
           term.eta_reduction();
         }
       }

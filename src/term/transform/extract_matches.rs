@@ -136,7 +136,7 @@ impl Term {
         bod.extract_matches(def_name, book, match_count)?;
       }
       Term::App { fun: fst, arg: snd, .. }
-      | Term::Let { pat: Pattern::Var(_), val: fst, nxt: snd }
+      | Term::Let { pat: Pattern::Var { .. }, val: fst, nxt: snd }
       | Term::Dup { val: fst, nxt: snd, .. }
       | Term::Tup { fst, snd }
       | Term::Sup { fst, snd, .. }
@@ -172,7 +172,7 @@ fn match_to_def(
 ) -> Term {
   let free_vars: IndexSet<Name> = arms
     .iter()
-    .flat_map(|(pat, term)| term.free_vars().into_keys().filter(|k| !pat.names().contains(k)))
+    .flat_map(|(pat, term)| term.free_vars().into_keys().filter(|k| !pat.bound_names().contains(k)))
     .collect();
 
   let mut rules: Vec<Rule> =

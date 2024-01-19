@@ -21,26 +21,27 @@ impl Book {
 impl Pattern {
   pub fn resolve_ctrs(&mut self, is_ctr: &impl Fn(&Name) -> bool) {
     match self {
-      Pattern::Var(Some(nam)) => {
+      Pattern::Var { nam }  => {
         if is_ctr(nam) {
-          *self = Pattern::Ctr(nam.clone(), vec![])
+          *self = Pattern::Ctr { nam: nam.clone(), args: vec![] }
         }
       }
-      Pattern::Ctr(_, args) => {
+      Pattern::Ctr { args, .. } => {
         for arg in args {
           arg.resolve_ctrs(is_ctr);
         }
       }
-      Pattern::Var(None) => (),
-      Pattern::Num(_) => (),
-      Pattern::Tup(fst, snd) => {
+      Pattern::Era => (),
+      Pattern::Num { .. } => (),
+      Pattern::Tup { fst, snd } => {
         fst.resolve_ctrs(is_ctr);
         snd.resolve_ctrs(is_ctr);
       }
-      Pattern::Dup(_, fst, snd) => {
+      Pattern::Sup { fst, snd, .. } => {
         fst.resolve_ctrs(is_ctr);
         snd.resolve_ctrs(is_ctr);
       }
+      Pattern::Implicit => unreachable!(),
     }
   }
 }
