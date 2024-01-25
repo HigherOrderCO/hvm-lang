@@ -39,7 +39,7 @@ impl Pattern {
           }
           check.extend(args.iter());
         }
-        _ => ()
+        _ => (),
       }
     }
     unbounds

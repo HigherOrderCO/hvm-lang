@@ -225,8 +225,11 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
         let mat = Term::Match {
           scrutinee: hole(),
           arms: vec![
-            (Pattern::Num { mat: crate::term::MatchNum::Zero } , Term::default()),
-            (Pattern::Num { mat: crate::term::MatchNum::Succ(Box::new(Pattern::Var { nam: pred })) }, Term::default()),
+            (Pattern::Num { mat: crate::term::MatchNum::Zero }, Term::default()),
+            (
+              Pattern::Num { mat: crate::term::MatchNum::Succ(Box::new(Pattern::Var { nam: pred })) },
+              Term::default(),
+            ),
           ],
         };
         let ((scrutinee, zero, succ), mat) = LoanedMut::loan_with(mat, |mat, l| {
@@ -282,15 +285,19 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
           let snd_var = Term::Var { nam: snd_name.clone() };
           let snd_box = LoanedMut::new(snd_var);
           let ((val, fst, snd, nxt), dup) = LoanedMut::<'term, Term>::loan_with(
-            Term::Let { pat: Pattern::Sup {
-              tag: tag, 
-              fst: Box::new(Pattern::Var { nam: fst_name.clone() }),
-              snd: Box::new(Pattern::Var { nam: snd_name }),
-            }, val: hole(), nxt: hole() }, 
+            Term::Let {
+              pat: Pattern::Sup {
+                tag,
+                fst: Box::new(Pattern::Var { nam: fst_name.clone() }),
+                snd: Box::new(Pattern::Var { nam: snd_name }),
+              },
+              val: hole(),
+              nxt: hole(),
+            },
             |term: &mut Term, l| {
               let Term::Let { pat: Pattern::Sup { tag, fst, snd }, val, nxt } = term else { unreachable!() };
               (l.loan_mut(val), l.loan_mut(fst), l.loan_mut(snd), l.loan_mut(nxt))
-            }
+            },
           );
           let Pattern::Var { nam: fst } = fst else { unreachable!() };
           let Pattern::Var { nam: snd } = snd else { unreachable!() };
@@ -298,7 +305,6 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
           *nxt = Term::Var { nam: fst_name };
           self.read_pos(port.p1, dup.into());
           self.read_pos(port.p2, snd_box.into());
-
         }
       }
     }
@@ -363,19 +369,12 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
           if port.lab != 1 {
             let _tag = (port.lab as u32 >> 1) - 1;
             let tag = self.labels.dup.to_tag(Some((port.lab as u32 >> 1) - 1));
-            *into = Term::Sup {
-              tag,
-              fst: hole(),
-              snd: hole(),
-            };
+            *into = Term::Sup { tag, fst: hole(), snd: hole() };
             let Term::Sup { fst, snd, .. } = into else { unreachable!() };
             self.read_neg(port.p1, fst);
             self.read_neg(port.p2, snd);
           } else {
-            *into = Term::Tup {
-              fst: hole(),
-              snd: hole(),
-            };
+            *into = Term::Tup { fst: hole(), snd: hole() };
             let Term::Tup { ref mut fst, ref mut snd, .. } = into else { unreachable!() };
             self.read_neg(port.p1, fst);
             self.read_neg(port.p2, snd);

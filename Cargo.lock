@@ -222,6 +222,7 @@ dependencies = [
  "itertools 0.11.0",
  "loaned",
  "logos",
+ "replace_with",
  "shrinkwraprs",
  "stdext",
  "walkdir",
@@ -367,6 +368,12 @@ name = "regex-syntax"
 version = "0.6.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1"
+
+[[package]]
+name = "replace_with"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3a8614ee435691de62bcffcf4a66d91b3594bf1428a5722e79103249a095690"
 
 [[package]]
 name = "same-file"

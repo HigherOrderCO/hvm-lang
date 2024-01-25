@@ -64,14 +64,21 @@ fn make_rule_body(mut body: Term, pats: &[Pattern]) -> Term {
   // Add the lambdas for the pattern variables
   for pat in pats.iter().rev() {
     match pat {
-      Pattern::Var { nam } => body = Term::Lam { tag: Tag::Static, nam: Some(nam.clone()), bod: Box::new(body) },
+      Pattern::Implicit => todo!(),
+      Pattern::Era => body = Term::Lam { tag: Tag::Static, nam: None, bod: Box::new(body) },
+      Pattern::Var { nam } => {
+        body = Term::Lam { tag: Tag::Static, nam: Some(nam.clone()), bod: Box::new(body) }
+      }
+      Pattern::Lnk { nam } => {
+        body = Term::Chn { tag: Tag::Static, nam: nam.clone(), bod: Box::new(body) }
+      }
       Pattern::Ctr { args: vars, .. } => {
         for var in vars.iter().rev() {
           let Pattern::Var { nam } = var else { unreachable!() };
           body = Term::Lam { tag: Tag::Static, nam: Some(nam.clone()), bod: Box::new(body) }
         }
       }
-      Pattern::Num { mat: MatchNum::Succ(pat) } => {
+      Pattern::Num { .. } => {
         todo!()
         //body = Term::Lam { tag: Tag::Static, nam: nam.clone(), bod: Box::new(body) }
       }
@@ -122,10 +129,12 @@ fn make_pattern_matching_case(
     // First rule will always be selected, generate leaf case.
     make_leaf_pattern_matching_case(book, def_id, crnt_name, fst_rule_idx, match_path);
   } else {
-    let is_adt_case =
-      crnt_rules.iter().any(|rule_idx| matches!(def.rules[*rule_idx].pats[crnt_arg_idx], Pattern::Ctr { .. }));
-    let is_num_case =
-      crnt_rules.iter().any(|rule_idx| matches!(def.rules[*rule_idx].pats[crnt_arg_idx], Pattern::Num { .. }));
+    let is_adt_case = crnt_rules
+      .iter()
+      .any(|rule_idx| matches!(def.rules[*rule_idx].pats[crnt_arg_idx], Pattern::Ctr { .. }));
+    let is_num_case = crnt_rules
+      .iter()
+      .any(|rule_idx| matches!(def.rules[*rule_idx].pats[crnt_arg_idx], Pattern::Num { .. }));
     if is_adt_case {
       // Current arg is pattern matching, encode the pattern matching call
       make_adt_pattern_matching_case(book, def_type, def_id, crnt_name, crnt_rules, match_path);
@@ -170,7 +179,9 @@ fn make_leaf_pattern_matching_case(
   // Add the applications to call the rule body
   term = match_path.iter().zip(&rule.pats).fold(term, |term, (matched, pat)| {
     match (matched, pat) {
-      (Pattern::Var { .. }, Pattern::Var { .. }) => Term::optional_arg_call(term, next(lambdas_usage, arg_use)),
+      (Pattern::Var { .. }, Pattern::Var { .. }) => {
+        Term::optional_arg_call(term, next(lambdas_usage, arg_use))
+      }
       (Pattern::Ctr { args: vars, .. }, Pattern::Ctr { .. }) => {
         vars.iter().fold(term, |term, _| Term::optional_arg_call(term, next(lambdas_usage, arg_use)))
       }
@@ -191,10 +202,14 @@ fn make_leaf_pattern_matching_case(
         Term::App { tag: Tag::Static, fun: Box::new(term), arg: Box::new(ctr_term) }
       }
       // As the destructuring of the tuple happens later, we just pass the tuple itself.
-      (Pattern::Var { .. }, Pattern::Tup { .. }) => Term::optional_arg_call(term, next(lambdas_usage, arg_use)),
-      (Pattern::Var { .. }, Pattern::Sup { .. }) => Term::optional_arg_call(term, next(lambdas_usage, arg_use)),
-      (Pattern::Num { mat: MatchNum::Zero } , Pattern::Num { mat: MatchNum::Zero }) => term,
-      (Pattern::Num { mat: MatchNum::Succ { .. }}, Pattern::Num { mat: MatchNum::Succ { .. }}) => {
+      (Pattern::Var { .. }, Pattern::Tup { .. }) => {
+        Term::optional_arg_call(term, next(lambdas_usage, arg_use))
+      }
+      (Pattern::Var { .. }, Pattern::Sup { .. }) => {
+        Term::optional_arg_call(term, next(lambdas_usage, arg_use))
+      }
+      (Pattern::Num { mat: MatchNum::Zero }, Pattern::Num { mat: MatchNum::Zero }) => term,
+      (Pattern::Num { mat: MatchNum::Succ { .. } }, Pattern::Num { mat: MatchNum::Succ { .. } }) => {
         Term::optional_arg_call(term, next(lambdas_usage, arg_use))
       }
       (Pattern::Var { .. }, Pattern::Num { .. }) => term,
@@ -231,8 +246,8 @@ fn add_tagged_new_args(
     tag: Option<String>,
   ) -> Term {
     match pat {
-      Pattern::Var { nam: field } => {
-        if let Some((var, tag)) = field.clone().zip(tag) {
+      Pattern::Var { nam: var } => {
+        if let Some(tag) = tag {
           let name = Name(format!("{}.{}", tag, var));
           term = Term::tagged_lam(new_args.next().unwrap(), term, Tag::Named(name))
         } else {
@@ -248,7 +263,10 @@ fn add_tagged_new_args(
       }
       Pattern::Num { .. } => term = Term::named_lam(new_args.next().unwrap(), term),
       Pattern::Tup { .. } => todo!(),
-      Pattern::Dup { .. } => todo!(),
+      Pattern::Sup { .. } => todo!(),
+      Pattern::Lnk { .. } => todo!(),
+      Pattern::Implicit => todo!(),
+      Pattern::Era => todo!(),
     }
 
     term
@@ -274,7 +292,7 @@ fn make_num_pattern_matching_case(
       .filter(|&rule_idx| {
         matches!(
           (&def_rules[rule_idx].pats[arg_idx], num),
-          (Pattern::Num { mat: Zero }, Zero) | (Pattern::Num { mat: Succ { .. }}, Succ { .. })
+          (Pattern::Num { mat: Zero }, Zero) | (Pattern::Num { mat: Succ { .. } }, Succ { .. })
         )
       })
       .collect()
@@ -290,7 +308,7 @@ fn make_num_pattern_matching_case(
       let crnt_rules = filter_rules(&def.rules, &crnt_rules, match_path.len(), &next_ctr);
       let new_vars = match next_ctr {
         Zero => Pattern::Num { mat: Zero },
-        Succ(_) => Pattern::Num { mat: Succ(Box::new(Pattern::Var { nam: Name::new("pred$") }))},
+        Succ(_) => Pattern::Num { mat: Succ(Box::new(Pattern::Var { nam: Name::new("pred$") })) },
       };
       let mut match_path = match_path.clone();
       match_path.push(new_vars);
@@ -298,7 +316,7 @@ fn make_num_pattern_matching_case(
       make_pattern_matching_case(book, def_type, def_id, &crnt_name, crnt_rules, match_path);
 
       let body = Term::Ref { def_id: book.def_names.def_id(&crnt_name).unwrap() };
-      (Pattern::Num(next_ctr), body)
+      (Pattern::Num { mat: next_ctr }, body)
     })
     .collect();
 
@@ -329,10 +347,13 @@ fn make_adt_pattern_matching_case(
       .copied()
       .filter(|&rule_idx| match &def_rules[rule_idx].pats[arg_idx] {
         Pattern::Var { .. } => true,
-        Pattern::Ctr { nam, ..} => nam == ctr,
+        Pattern::Lnk { .. } => true,
+        Pattern::Ctr { nam, .. } => nam == ctr,
         Pattern::Num { .. } => todo!(),
         Pattern::Tup { .. } => todo!(),
-        Pattern::Dup { .. } => todo!(),
+        Pattern::Sup { .. } => todo!(),
+        Pattern::Implicit => todo!(),
+        Pattern::Era => todo!(),
       })
       .collect()
   }
@@ -393,7 +414,7 @@ fn make_non_pattern_matching_case(
 
   // Make next function
   let mut next_match_path = match_path.clone();
-  next_match_path.push(Pattern::Var(Some(arg_name.clone())));
+  next_match_path.push(Pattern::Var { nam: arg_name.clone() });
   make_pattern_matching_case(book, def_type, def_id, &nxt_def_name, crnt_rules, next_match_path);
 
   // Make call to next function
@@ -473,13 +494,15 @@ fn add_case_to_book(book: &mut Book, nam: Name, body: Term) {
 // How many old arguments and how many new arguments in the match path
 fn get_pat_arg_count(match_path: &[Pattern]) -> (usize, usize) {
   let pat_arg_count = |pat: &Pattern| match pat {
-    Pattern::Var { .. } => 1,
+    Pattern::Var { .. } | Pattern::Lnk { .. } => 1,
     Pattern::Ctr { args: vars, .. } => vars.len(),
     Pattern::Num { mat: MatchNum::Zero } => 0,
     Pattern::Num { mat: MatchNum::Succ { .. } } => 1,
     // For tuples this isn't actually called, because we only destructure them at the end
     Pattern::Tup { .. } => 2,
     Pattern::Sup { .. } => 2,
+    Pattern::Implicit => todo!(),
+    Pattern::Era => todo!(),
   };
   if let Some((new_pat, old_pats)) = match_path.split_last() {
     let new_args = pat_arg_count(new_pat);

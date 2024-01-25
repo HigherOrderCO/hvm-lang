@@ -40,9 +40,13 @@ pub fn check_uses<'a>(
   // TODO: Don't stop at the first error
   match term {
     Term::Lam { nam, bod, .. } => {
-      push_scope(nam.as_ref(), scope);
+      if let Some(nam) = nam {
+        push_scope(nam, scope)
+      };
       check_uses(bod, scope, globals)?;
-      pop_scope(nam.as_ref(), scope);
+      if let Some(nam) = nam {
+        pop_scope(nam, scope)
+      };
     }
     Term::Var { nam } => {
       if !scope.contains_key(nam) {
@@ -58,18 +62,37 @@ pub fn check_uses<'a>(
     }
     Term::Let { pat: Pattern::Var { nam }, val, nxt } => {
       check_uses(val, scope, globals)?;
-      push_scope(nam.as_ref(), scope);
+      push_scope(nam, scope);
       check_uses(nxt, scope, globals)?;
-      pop_scope(nam.as_ref(), scope);
+      pop_scope(nam, scope);
     }
-    Term::Dup { fst, snd, val, nxt, .. }
-    | Term::Let { pat: Pattern::Tup(box Pattern::Var(fst), box Pattern::Var(snd)), val, nxt } => {
+    Term::Let {
+      pat: Pattern::Tup { fst: box Pattern::Var { nam: fst }, snd: box Pattern::Var { nam: snd } },
+      val,
+      nxt,
+    } => {
       check_uses(val, scope, globals)?;
-      push_scope(fst.as_ref(), scope);
-      push_scope(snd.as_ref(), scope);
+      push_scope(fst, scope);
+      push_scope(snd, scope);
       check_uses(nxt, scope, globals)?;
-      pop_scope(fst.as_ref(), scope);
-      pop_scope(snd.as_ref(), scope);
+      pop_scope(fst, scope);
+      pop_scope(snd, scope);
+    }
+    Term::Dup { fst, snd, val, nxt, .. } => {
+      check_uses(val, scope, globals)?;
+      if let Some(fst) = fst {
+        push_scope(fst, scope)
+      };
+      if let Some(snd) = snd {
+        push_scope(snd, scope)
+      };
+      check_uses(nxt, scope, globals)?;
+      if let Some(fst) = fst {
+        pop_scope(fst, scope)
+      };
+      if let Some(snd) = snd {
+        pop_scope(snd, scope)
+      };
     }
     Term::Let { .. } => unreachable!(),
     Term::App { fun, arg, .. } => {
@@ -83,14 +106,12 @@ pub fn check_uses<'a>(
     Term::Match { scrutinee, arms } => {
       check_uses(scrutinee, scope, globals)?;
       for (pat, term) in arms {
-        if let Pattern::Num(MatchNum::Succ(Some(nam))) = pat {
-          push_scope(nam.as_ref(), scope);
+        for i in pat.bound_names() {
+          push_scope(i, scope)
         }
-
         check_uses(term, scope, globals)?;
-
-        if let Pattern::Num(MatchNum::Succ(Some(nam))) = pat {
-          pop_scope(nam.as_ref(), scope);
+        for i in pat.bound_names().rev() {
+          pop_scope(i, scope)
         }
       }
     }
@@ -99,22 +120,18 @@ pub fn check_uses<'a>(
   Ok(())
 }
 
-fn push_scope<'a>(nam: Option<&'a Name>, scope: &mut HashMap<&'a Name, u64>) {
-  if let Some(nam) = nam {
-    if let Some(n_declarations) = scope.get_mut(nam) {
-      *n_declarations += 1;
-    } else {
-      scope.insert(nam, 1);
-    }
+fn push_scope<'a>(nam: &'a Name, scope: &mut HashMap<&'a Name, u64>) {
+  if let Some(n_declarations) = scope.get_mut(nam) {
+    *n_declarations += 1;
+  } else {
+    scope.insert(nam, 1);
   }
 }
 
-fn pop_scope(nam: Option<&Name>, scope: &mut HashMap<&Name, u64>) {
-  if let Some(nam) = nam {
-    let n_declarations = scope.get_mut(nam).unwrap();
-    *n_declarations -= 1;
-    if *n_declarations == 0 {
-      scope.remove(nam);
-    }
+fn pop_scope(nam: &Name, scope: &mut HashMap<&Name, u64>) {
+  let n_declarations = scope.get_mut(nam).unwrap();
+  *n_declarations -= 1;
+  if *n_declarations == 0 {
+    scope.remove(nam);
   }
 }

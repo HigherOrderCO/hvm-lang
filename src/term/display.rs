@@ -99,9 +99,8 @@ impl fmt::Display for Pattern {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       Pattern::Var { nam } => write!(f, "{}", nam),
-      Pattern::Ctr {
-        nam, args
-        } => {
+      Pattern::Lnk { nam } => write!(f, "${}", nam),
+      Pattern::Ctr { nam, args } => {
         write!(f, "({}{})", nam, DisplayJoin(|| args.iter().map(|p| display!(" {p}")), ""))
       }
       Pattern::Num { mat } => write!(f, "{mat}"),

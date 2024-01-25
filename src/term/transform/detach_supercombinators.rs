@@ -39,10 +39,8 @@ impl<'d> TermInfo<'d> {
     self.needed_names.insert(name.to_owned());
   }
 
-  fn provide(&mut self, name: Option<&Name>) {
-    if let Some(name) = name {
-      self.needed_names.remove(name);
-    }
+  fn provide(&mut self, name: &Name) {
+    self.needed_names.remove(name);
   }
 
   fn check(&self) -> bool {
@@ -87,7 +85,9 @@ impl Term {
 
           let is_super = go(bod, depth + 1, term_info);
 
-          term_info.provide(nam.as_ref());
+          if let Some(nam) = nam {
+            term_info.provide(nam)
+          };
 
           if is_super && !term.is_id() && depth != 0 && term_info.check() {
             term_info.detach_term(term);
@@ -106,29 +106,54 @@ impl Term {
           false
         }
         Term::Lnk { .. } => false,
-        Term::Let { pat: Pattern::Var(nam), val, nxt } => {
+        Term::Let { pat: Pattern::Var { nam }, val, nxt } => {
           let val_is_super = go(val, depth + 1, term_info);
           let nxt_is_super = go(nxt, depth + 1, term_info);
-          term_info.provide(nam.as_ref());
+          term_info.provide(nam);
 
           val_is_super && nxt_is_super
         }
-        Term::Dup { fst, snd, val, nxt, .. }
-        | Term::Let { pat: Pattern::Tup(box Pattern::Var(fst), box Pattern::Var(snd)), val, nxt } => {
+        Term::Let {
+          pat: Pattern::Tup { fst: box Pattern::Var { nam: fst }, snd: box Pattern::Var { nam: snd } },
+          val,
+          nxt,
+        } => {
           let val_is_super = go(val, depth + 1, term_info);
           let nxt_is_supper = go(nxt, depth + 1, term_info);
 
-          term_info.provide(fst.as_ref());
-          term_info.provide(snd.as_ref());
+          term_info.provide(fst);
+          term_info.provide(snd);
 
           val_is_super && nxt_is_supper
         }
-        Term::Let { .. } => unreachable!(),
+        Term::Dup { fst, snd, val, nxt, .. } => {
+          let val_is_super = go(val, depth + 1, term_info);
+          let nxt_is_supper = go(nxt, depth + 1, term_info);
+
+          if let Some(fst) = fst {
+            term_info.provide(fst)
+          };
+          if let Some(snd) = snd {
+            term_info.provide(snd)
+          };
+
+          val_is_super && nxt_is_supper
+        }
+        Term::Let { pat, val, nxt } => {
+          let val_is_super = go(val, depth + 1, term_info);
+          let nxt_is_supper = go(nxt, depth + 1, term_info);
+
+          for i in pat.bound_names() {
+            term_info.provide(i);
+          }
+
+          val_is_super && nxt_is_supper
+        },
         Term::Match { scrutinee, arms } => {
           let mut is_super = go(scrutinee, depth + 1, term_info);
 
           for (pat, term) in arms {
-            debug_assert!(pat.is_detached_num_match());
+            todo!(); // debug_assert!(pat.is_detached_num_match());
 
             is_super &= go(term, depth + 1, term_info);
           }

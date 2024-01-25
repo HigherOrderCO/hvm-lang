@@ -9,13 +9,15 @@ use hvmc::{
 };
 use hvmc_net::{pre_reduce::pre_reduce_book, prune::prune_defs};
 use loaned::LoanedMut;
-use term::{encoder::{book_to_tree, Labels}, Book, DefId, DefNames, ReadbackError, Term};
+use term::{
+  encoder::{book_to_tree, Labels},
+  Book, DefId, DefNames, ReadbackError, Term,
+};
 
 pub mod hvmc_net;
 pub mod term;
 
 pub use term::load_book::load_file_to_book;
-
 
 pub fn check_book(mut book: Book) -> Result<(), String> {
   // TODO: Do the checks without having to do full compilation
@@ -34,15 +36,18 @@ pub fn compile_book(book: &mut Book, opt_level: OptimizationLevel) -> Result<Com
 }
 
 pub fn desugar_book(book: &mut Book, opt_level: OptimizationLevel) -> Result<DefId, String> {
-  /*let main = book.check_has_main()?;
+  let main = book.check_has_main()?;
   book.check_shared_names()?;
   book.encode_strs();
   book.generate_scott_adts();
+  book.unscope_vars();
+
+  println!("{}", book);
   book.resolve_refs();
   encode_pattern_matching(book)?;
-  book.check_unbound_vars()?;
-  book.make_var_names_unique();
-  book.linearize_vars();
+  //book.check_unbound_vars()?;
+  //book.make_var_names_unique();
+  //book.linearize_vars();
   if opt_level >= OptimizationLevel::Heavy {
     book.eta_reduction();
   }
@@ -52,8 +57,8 @@ pub fn desugar_book(book: &mut Book, opt_level: OptimizationLevel) -> Result<Def
   }
   if opt_level >= OptimizationLevel::Heavy {
     book.prune(&main);
-  }*/
-  Ok(todo!())
+  }
+  Ok(main)
 }
 
 pub fn encode_pattern_matching(book: &mut Book) -> Result<(), String> {
@@ -85,18 +90,18 @@ pub fn run_book(
     }
     return Err("Could not run the code because of the previous warnings".into());
   }
-/*
-  fn debug_hook(net: &Net, book: &Book, labels: &Labels, linear: bool) {
-    let net = hvmc_to_net(net);
-    let (res_term, errors) = net_to_term(&net, book, labels, linear);
-    println!(
-      "{}{}\n---------------------------------------",
-      if errors.is_empty() { "".to_string() } else { format!("Invalid readback: {:?}\n", errors) },
-      res_term.display(&book.def_names)
-    );
-  }
-  let debug_hook = if debug { Some(|net: &_| debug_hook(net, &book, &labels, linear)) } else { None };
-*/
+  /*
+    fn debug_hook(net: &Net, book: &Book, labels: &Labels, linear: bool) {
+      let net = hvmc_to_net(net);
+      let (res_term, errors) = net_to_term(&net, book, labels, linear);
+      println!(
+        "{}{}\n---------------------------------------",
+        if errors.is_empty() { "".to_string() } else { format!("Invalid readback: {:?}\n", errors) },
+        res_term.display(&book.def_names)
+      );
+    }
+    let debug_hook = if debug { Some(|net: &_| debug_hook(net, &book, &labels, linear)) } else { None };
+  */
   let debug_hook = Some(|a: &hvmc::ast::Net| ());
   let host = Host::new(&core_book);
   let ((area, mut res_inet), stats) = run_compiled(&host, mem_size, parallel, debug_hook);

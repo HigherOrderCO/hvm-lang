@@ -23,7 +23,7 @@ impl Term {
             let Term::Match { scrutinee, arms } = std::mem::take(self) else { unreachable!() };
 
             *self = Term::Let {
-              pat: Pattern::Var(Some(nam.clone())),
+              pat: Pattern::Var { nam: nam.clone() },
               val: scrutinee,
               nxt: Box::new(Term::Match { scrutinee: Box::new(Term::Var { nam: nam.clone() }), arms }),
             };
@@ -40,24 +40,22 @@ impl Term {
         for (pat, body) in arms {
           match pat {
             Pattern::Var { .. } => (),
-            Pattern::Ctr(nam, pat_args) => {
+            Pattern::Lnk { .. } => (),
+            Pattern::Ctr { nam, args: pat_args } => {
               let adt = &ctrs[nam];
               let Adt { ctrs } = &adts[adt];
               let ctr_args = &ctrs[nam.as_ref()];
               if pat_args.is_empty() && !ctr_args.is_empty() {
                 // Implicit ctr args
                 *pat_args =
-                  ctr_args.iter().map(|x| Pattern::Var(Some(Name(format!("{scrutinee}.{x}"))))).collect();
+                  ctr_args.iter().map(|x| Pattern::Var { nam: Name(format!("{scrutinee}.{x}")) }).collect();
               }
             }
-            Pattern::Num(MatchNum::Zero) => (),
-            Pattern::Num(MatchNum::Succ(Some(_))) => (),
-            Pattern::Num(MatchNum::Succ(p @ None)) => {
-              // Implicit num arg
-              *p = Some(Some(Name(format!("{scrutinee}-1"))));
-            }
+            Pattern::Num { .. } => (), // TODO
             Pattern::Tup { .. } => (),
-            Pattern::Dup { .. } => (),
+            Pattern::Sup { .. } => (),
+            Pattern::Implicit => (),
+            Pattern::Era => (),
           }
           body.desugar_implicit_match_binds(ctrs, adts);
         }

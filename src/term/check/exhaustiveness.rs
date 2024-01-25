@@ -55,17 +55,20 @@ fn check_pattern(
           let pat = &rules[rule_idx].pats[match_path.len()];
           match pat {
             Pattern::Var { .. } => next_rules_to_check.values_mut().for_each(|x| x.push(rule_idx)),
-            Pattern::Num { mat  } => {
-              next_rules_to_check.get_mut(&match mat {
-                MatchNum::Zero => Name::new("0"),
-                MatchNum::Succ(_) => Name::new("+"),
-              }).unwrap().push(rule_idx);
-            },
+            Pattern::Num { mat } => {
+              next_rules_to_check
+                .get_mut(&match mat {
+                  MatchNum::Zero => Name::new("0"),
+                  MatchNum::Succ(_) => Name::new("+"),
+                })
+                .unwrap()
+                .push(rule_idx);
+            }
             _ => unreachable!(),
           }
         }
         next_rules_to_check
-      },
+      }
       _ => todo!(),
     };
 

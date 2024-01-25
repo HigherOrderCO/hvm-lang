@@ -47,7 +47,8 @@ pub fn infer_arg_type<'a>(
   for pat in pats {
     let pat_type = match pat {
       Pattern::Var { .. } => Type::Any,
-      Pattern::Ctr(ctr_nam, _) => {
+      Pattern::Lnk { .. } => Type::Any,
+      Pattern::Ctr { nam: ctr_nam, .. } => {
         if let Some(adt_nam) = ctrs.get(ctr_nam) {
           Type::Adt(adt_nam.clone())
         } else {
@@ -55,8 +56,10 @@ pub fn infer_arg_type<'a>(
         }
       }
       Pattern::Tup { .. } => Type::Tup,
-      Pattern::Dup { .. } => Type::Sup,
+      Pattern::Sup { .. } => Type::Sup,
       Pattern::Num { .. } => Type::Num,
+      Pattern::Implicit => todo!(),
+      Pattern::Era => todo!(),
     };
     unify(pat_type, &mut arg_type)?
   }

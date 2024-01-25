@@ -314,6 +314,16 @@ impl<'t, 'l> Encoder<'t, 'l> {
         self.encode_term(succ, Place::Hole(succ_p));
         self.link(place, Place::Hole(ret));
       }
+      Term::Let { pat, val, nxt } => {
+        let (tree_ref, tree_box) = LoanedMut::loan(Box::new(Tree::Ctr { lab: 0, lft: Default::default(), rgt: Default::default() }));
+        let Tree::Ctr { lab, lft, rgt } = tree_ref else { unreachable!() };
+        self.encode_term(&pat.into(), Place::Hole(lft));
+        self.encode_term(val, Place::Hole(rgt));
+        let nam = self.generate_string();
+        let app_box = LoanedMut::new(Box::new(Tree::Ctr { lab: 0, lft: Box::new(Tree::Var { nam: nam.clone() }), rgt: Box::new(Tree::Var { nam: nam.clone() })}));
+        self.redexes.push((tree_box, app_box));
+        self.encode_term(nxt, place);
+      }
       x => todo!("{:?}", x),
     }
   }

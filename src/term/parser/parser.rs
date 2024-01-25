@@ -204,7 +204,7 @@ where
 
     // pat: term
     let match_arm = pattern()
-      .or(just(Token::Add).map(|_| Pattern::Num { mat: MatchNum::Succ(Box::new(Pattern::Era)) } ))
+      .or(just(Token::Add).map(|_| Pattern::Num { mat: MatchNum::Succ(Box::new(Pattern::Era)) }))
       .then_ignore(just(Token::Colon))
       .then(term.clone())
       .boxed();
@@ -233,8 +233,8 @@ where
       .map(|((cond, zero), succ)| Term::Match {
         scrutinee: Box::new(Term::Var { nam: cond.clone() }),
         arms: vec![
-          (Pattern::Num { mat: MatchNum::Zero }, zero), 
-          (Pattern::Num { mat: MatchNum::Succ(Box::new(Pattern::Era)) }, succ)
+          (Pattern::Num { mat: MatchNum::Zero }, zero),
+          (Pattern::Num { mat: MatchNum::Succ(Box::new(Pattern::Era)) }, succ),
         ],
       })
       .boxed();
@@ -287,7 +287,8 @@ where
   I: ValueInput<'a, Token = Token, Span = SimpleSpan>,
 {
   recursive(|pattern| {
-    let var = name_or_era().map(|nam| if let Some(nam) = nam { Pattern::Var { nam} } else { Pattern::Era }).boxed();
+    let var =
+      name_or_era().map(|nam| if let Some(nam) = nam { Pattern::Var { nam } } else { Pattern::Era }).boxed();
 
     let ctr = name()
       .then(pattern.clone().repeated().collect())
@@ -305,16 +306,16 @@ where
 
     let zero = select!(Token::Num(0) => Pattern::Num { mat: MatchNum::Zero });
 
-    let succ =
-      just(Token::Add).ignore_then(name_or_era()).map(|nam| {
-        Pattern::Num { mat: MatchNum::Succ(Box::new(
-          if let Some(nam) = nam {
-            Pattern::Var { nam }
-          } else {
-            Pattern::Implicit
-          }
-        ))}
-      }).boxed();
+    let succ = just(Token::Add)
+      .ignore_then(name_or_era())
+      .map(|nam| Pattern::Num {
+        mat: MatchNum::Succ(Box::new(if let Some(nam) = nam {
+          Pattern::Var { nam }
+        } else {
+          Pattern::Implicit
+        })),
+      })
+      .boxed();
 
     choice((zero, succ, var, ctr, tup))
   })

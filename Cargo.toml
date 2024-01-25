@@ -28,6 +28,7 @@ indexmap = "2.1.0"
 itertools = "0.11.0"
 logos = "0.13.0"
 shrinkwraprs = "0.3.0"
+replace_with = "0.1.7"
 
 # [patch."https://github.com/HigherOrderCO/hvm-lang"]
 # hvm-lang = { path = "."}

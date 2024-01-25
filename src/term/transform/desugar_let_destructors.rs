@@ -51,7 +51,7 @@ impl Term {
           Term::Var { .. } => Term::Match { scrutinee: val, arms },
           _ => {
             let nam = Name::new("%temp%scrutinee");
-            let pat = Pattern::Var(Some(nam.clone()));
+            let pat = Pattern::Var { nam: nam.clone() };
             let scrutinee = Box::new(Term::Var { nam });
             Term::Let { pat, val, nxt: Box::new(Term::Match { scrutinee, arms }) }
           }

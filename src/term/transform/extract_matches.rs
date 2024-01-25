@@ -89,11 +89,11 @@ impl Term {
     let mut missing: HashSet<_> = ctrs.keys().cloned().collect();
 
     for rule in pats {
-      let Pattern::Ctr(nam, args) = rule else { unreachable!() };
+      let Pattern::Ctr { nam, args } = rule else { unreachable!() };
 
       let mut binds = HashSet::new();
       for arg in args {
-        for bind in arg.names() {
+        for bind in arg.bound_names() {
           if !binds.insert(bind) {
             return Err(MatchError::Repeated(bind.clone()));
           }
@@ -181,7 +181,7 @@ fn match_to_def(
   // Extend the rules with the free variables
   for rule in &mut rules {
     for var in &free_vars {
-      rule.pats.push(Pattern::Var(Some(var.clone())));
+      rule.pats.push(Pattern::Var { nam: var.clone() });
     }
   }
 
