@@ -69,9 +69,7 @@ fn make_rule_body(mut body: Term, pats: &[Pattern]) -> Term {
       Pattern::Var { nam } => {
         body = Term::Lam { tag: Tag::Static, nam: Some(nam.clone()), bod: Box::new(body) }
       }
-      Pattern::Lnk { nam } => {
-        body = Term::Chn { tag: Tag::Static, nam: nam.clone(), bod: Box::new(body) }
-      }
+      Pattern::Lnk { nam } => body = Term::Chn { tag: Tag::Static, nam: nam.clone(), bod: Box::new(body) },
       Pattern::Ctr { args: vars, .. } => {
         for var in vars.iter().rev() {
           let Pattern::Var { nam } = var else { unreachable!() };

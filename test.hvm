@@ -1,1 +1,1 @@
-Main = λx(λ$k(0) λp (p x $k))
+Main = λa λ$b λc (c $b a)

@@ -15,6 +15,7 @@ pub fn book_to_tree(book: &Book, main: DefId) -> hvmc::ast::Book {
 
   for def in book.defs.values() {
     for rule in def.rules.iter() {
+      println!("{}", rule.body.display(&book.def_names));
       let net = term_to_compat_net(&rule.body, &mut labels);
 
       let name =
@@ -41,23 +42,13 @@ pub fn term_to_compat_net(term: &Term, labels: &mut Labels) -> hvmc::ast::Net {
   let (root_ref, root_own) = LoanedMut::loan(Box::new(Tree::Era));
 
   encoder.encode_term(term, Place::Hole(root_ref));
-  let loaned_redexes: Vec<_> = core::mem::take(&mut encoder.redexes);
+  let loaned_redexes: LoanedMut<Vec<(Tree, Tree)>> = core::mem::take(&mut encoder.redexes).into();
   encoder.finish();
-  let loaned_redexes: LoanedMut<Vec<(Box<Tree>, Box<Tree>)>> = {
-    let mut loaned_redexes = std::mem::ManuallyDrop::new(loaned_redexes);
-    unsafe {
-      LoanedMut::new(Vec::from_raw_parts(
-        loaned_redexes.as_mut_ptr() as *mut _,
-        loaned_redexes.len(),
-        loaned_redexes.capacity(),
-      ))
-    }
-  };
 
   let redex = loaned::take!(loaned_redexes);
   let root = loaned::take!(root_own);
 
-  Net { root: *root, rdex: redex.into_iter().map(|(a, b)| (*a, *b)).collect() }
+  Net { root: *root, rdex: redex.into_iter().collect() }
 }
 
 #[derive(Debug)]
@@ -302,7 +293,7 @@ fn create_ctr<'t>(lab: u16) -> (LoanedMut<'t, Tree>, &'t mut Tree, &'t mut Tree)
 
 fn create_op2<'t>(opr: hvmc::ops::Op) -> (LoanedMut<'t, Tree>, &'t mut Tree, &'t mut Tree) {
   let ((lft, rgt), tree) = LoanedMut::loan_with(Tree::Op2 { opr, lft: hole(), rgt: hole() }, |tree, l| {
-    let Tree::Ctr { lft, rgt, .. } = tree else { unreachable!() };
+    let Tree::Op2 { lft, rgt, .. } = tree else { unreachable!() };
     (l.loan_mut(lft), l.loan_mut(rgt))
   });
   (tree, lft, rgt)

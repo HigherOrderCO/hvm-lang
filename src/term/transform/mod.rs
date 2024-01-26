@@ -9,7 +9,7 @@ pub mod encode_strs;
 pub mod eta_reduction;
 pub mod extract_matches;
 pub mod flatten;
-// pub mod linearize;
+pub mod linearize;
 pub mod resolve_ctrs_in_pats;
 pub mod resolve_refs;
 pub mod simplify_ref_to_ref;

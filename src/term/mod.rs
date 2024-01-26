@@ -546,7 +546,7 @@ impl From<&Pattern> for Term {
       Pattern::Sup { tag, fst, snd } => {
         Term::Sup { tag: tag.clone(), fst: Box::new(fst.as_ref().into()), snd: Box::new(snd.as_ref().into()) }
       }
-      Pattern::Era => todo!(),
+      Pattern::Era => Term::Era,
       Pattern::Implicit => todo!(),
     }
   }

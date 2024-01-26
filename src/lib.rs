@@ -40,14 +40,13 @@ pub fn desugar_book(book: &mut Book, opt_level: OptimizationLevel) -> Result<Def
   book.check_shared_names()?;
   book.encode_strs();
   book.generate_scott_adts();
+  book.resolve_refs();
   book.unscope_vars();
 
-  println!("{}", book);
-  book.resolve_refs();
-  encode_pattern_matching(book)?;
-  //book.check_unbound_vars()?;
-  //book.make_var_names_unique();
-  //book.linearize_vars();
+  //println!("{}", book);
+  //encode_pattern_matching(book)?;
+  book.linearize_vars();
+  //println!("{}", book);
   if opt_level >= OptimizationLevel::Heavy {
     book.eta_reduction();
   }
