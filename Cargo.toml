@@ -22,7 +22,7 @@ cli = ["dep:clap"]
 [dependencies]
 chumsky = "= 1.0.0-alpha.4"
 clap = { version = "4.4.1", features = ["derive"], optional = true }
-hvm-core = { git = "https://github.com/HigherOrderCO/hvm-core", branch = "ptr-refactor-nonnull" }
+hvm-core = { git = "https://github.com/HigherOrderCO/hvm-core", branch = "ptr-refactor" }
 loaned = { git = "https://github.com/tjjfvi/loaned.git" }
 indexmap = "2.1.0"
 itertools = "0.11.0"

@@ -1,5 +1,6 @@
 //! Pass that turns all variables into scopeless variables.
 
+
 use indexmap::IndexMap;
 
 use crate::term::{self, Book, Name, Pattern, Term};
@@ -39,7 +40,7 @@ impl Book {
 
 impl<'t> Unscoper<'t> {
   fn name_for(&self, name: &Name) -> Name {
-    Name(format!("{}_{}", name.0, self.scope.get(name).map(|x| x.len() + 1).unwrap_or(0)))
+    Name(format!("{}_{}", name.0, self.scope.get(name).map(|x| x.len()).unwrap_or(0)))
   }
   fn push_scope(&mut self, name: &'t mut Name) {
     self.scope.entry(name.clone()).or_default().push(vec![name]);
@@ -67,8 +68,10 @@ impl<'t> Unscoper<'t> {
     self.saved_depths.push(self.scope.iter().map(|(k, v)| (k.clone(), v.len())).collect())
   }
   fn pop_depths(&mut self) {
-    for (name, len) in self.saved_depths.pop().unwrap_or_default().into_iter() {
-      self.pop_scope_until_len(&name, len)
+    let l = self.saved_depths.pop().unwrap_or_default();
+    let i: Vec<_> = self.scope.keys().cloned().collect();
+    for name in i {
+      self.pop_scope_until_len(&name, l.get(&name).unwrap_or(&0).clone());
     }
   }
   fn unscope_term(&mut self, term: &'t mut Term) {
@@ -84,22 +87,24 @@ impl<'t> Unscoper<'t> {
           let Term::Lam { tag, nam, bod } = term else { unreachable!() };
           Term::Chn { tag, nam: nam.unwrap(), bod }
         });
-        let Term::Chn { nam, tag, bod } = term else { unreachable!() };
+        let Term::Chn { nam, tag: _, bod } = term else { unreachable!() };
+        let nam_clone = nam.clone();
         self.push_scope(nam);
         self.unscope_term(bod);
+        self.pop_scope(&nam_clone);
       }
-      Term::Dup { tag, fst, snd, val, nxt } => {
+      Term::Dup { tag: _, fst, snd, val, nxt } => {
         *fst = fst.as_mut().map(|x| self.name_for(x));
         *snd = snd.as_mut().map(|x| self.name_for(x));
         self.unscope_term(val);
         self.unscope_term(nxt);
       }
 
-      Term::Sup { tag, fst, snd } => {
+      Term::Sup { tag: _, fst, snd } => {
         self.unscope_term(fst);
         self.unscope_term(snd);
       }
-      Term::App { tag, fun, arg } => {
+      Term::App { tag: _, fun, arg } => {
         self.unscope_term(fun);
         self.unscope_term(arg);
       }
@@ -114,11 +119,12 @@ impl<'t> Unscoper<'t> {
         self.unscope_term(fst);
         self.unscope_term(snd);
       }
-      Term::Opx { op, fst, snd } => {
+      Term::Opx { op: _, fst, snd } => {
         self.unscope_term(fst);
         self.unscope_term(snd);
       }
       Term::Match { scrutinee, arms } => {
+        self.unscope_term(scrutinee.as_mut());
         for i in arms.iter_mut() {
           self.push_depths();
           self.unscope_pat(&mut i.0);
@@ -139,12 +145,12 @@ impl<'t> Unscoper<'t> {
         let Pattern::Lnk { nam } = pat else { unreachable!() };
         self.push_scope(nam)
       }
-      Pattern::Ctr { nam, args } => todo!(),
+      Pattern::Ctr { nam: _, args: _ } => todo!(),
       Pattern::Num { mat } => match mat {
         term::MatchNum::Zero => (),
         term::MatchNum::Succ(p) => self.unscope_pat(p),
       },
-      Pattern::Sup { tag, fst, snd } => {
+      Pattern::Sup { tag: _, fst, snd } => {
         self.unscope_pat(fst);
         self.unscope_pat(snd);
       }

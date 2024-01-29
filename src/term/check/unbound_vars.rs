@@ -1,4 +1,4 @@
-use crate::term::{Book, MatchNum, Name, Pattern, Term};
+use crate::term::{Book, Name, Pattern, Term};
 use std::collections::HashMap;
 
 impl Book {

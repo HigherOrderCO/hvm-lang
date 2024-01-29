@@ -42,7 +42,7 @@ impl Term {
       }
       Term::Match { scrutinee, arms } => {
         scrutinee.eta_reduction();
-        for (pat, term) in arms {
+        for (_pat, term) in arms {
           term.eta_reduction();
         }
       }

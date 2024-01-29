@@ -234,7 +234,7 @@ where
         scrutinee: Box::new(Term::Var { nam: cond.clone() }),
         arms: vec![
           (Pattern::Num { mat: MatchNum::Zero }, zero),
-          (Pattern::Num { mat: MatchNum::Succ(Box::new(Pattern::Era)) }, succ),
+          (Pattern::Num { mat: MatchNum::Succ(Box::new(Pattern::Implicit)) }, succ),
         ],
       })
       .boxed();

@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 use replace_with::replace_with_or_default;
 
 use crate::term::{Book, MatchNum, Name, Pattern, Tag, Term};
-use std::collections::HashMap;
+
 
 /// Erases variables that weren't used, dups the ones that were used more than once.
 /// Precondition: All variables are bound and have unique names within each definition.
@@ -88,15 +88,16 @@ impl Linearizer {
         replace_with_or_default(nam, |x| self.new_usage(x));
       }
       Term::Ref { .. } | Term::Era | Term::Num { .. } => (),
-      Term::Sup { tag, fst, snd } => {
+      Term::Sup { tag: _, fst, snd } => {
         self.linearize_term(fst);
         self.linearize_term(snd);
       }
-      Term::App { tag, fun, arg } => {
+      Term::App { fun, arg, .. } => {
         self.linearize_term(fun);
         self.linearize_term(arg);
       }
       Term::Let { pat, val, nxt } => {
+        self.linearize_pat(pat);
         self.linearize_term(val);
         self.linearize_term(nxt);
       }
@@ -104,7 +105,7 @@ impl Linearizer {
         self.linearize_term(fst);
         self.linearize_term(snd);
       }
-      Term::Opx { op, fst, snd } => {
+      Term::Opx { fst, snd, .. } => {
         self.linearize_term(fst);
         self.linearize_term(snd);
       }
@@ -125,7 +126,7 @@ impl Linearizer {
     let mut i = names.into_iter().enumerate().peekable();
     if i.peek().is_some() {
       while let Some((idx, user)) = i.next() {
-        let in_wire = Self::inner_var_name(&root, &idx, binder);
+        let _in_wire = Self::inner_var_name(&root, &idx, binder);
         let out_wire = Self::inner_var_name(&root, &(idx + 1), binder);
         if i.peek().is_some() {
           term = Term::Let {
@@ -159,9 +160,10 @@ impl Linearizer {
         tail_name = out_wire;
       }
     } else {
+      println!("ERA {:?} {}", tail_name, binder);
       term = Term::Let {
-        pat: if binder { Pattern::Era } else { Pattern::Lnk { nam: tail_name.clone() } },
-        val: Box::new(if binder { Term::Lnk { nam: tail_name } } else { Term::Era }),
+        pat: if binder { Pattern::Lnk { nam: tail_name.clone() } } else { Pattern::Era },
+        val: Box::new(if binder { Term::Era } else { Term::Lnk { nam: tail_name.clone() } }),
         nxt: Box::new(term),
       }
     }

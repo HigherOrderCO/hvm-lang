@@ -150,10 +150,10 @@ impl Term {
           val_is_super && nxt_is_supper
         }
         Term::Match { scrutinee, arms } => {
-          let mut is_super = go(scrutinee, depth + 1, term_info);
+          let is_super = go(scrutinee, depth + 1, term_info);
 
-          for (pat, term) in arms {
-            todo!(); // debug_assert!(pat.is_detached_num_match());
+          for (_pat, _term) in arms {
+            return false; // TODO
 
             is_super &= go(term, depth + 1, term_info);
           }

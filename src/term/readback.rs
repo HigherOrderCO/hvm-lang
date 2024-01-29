@@ -4,7 +4,7 @@ use hvmc::{
 };
 use indexmap::IndexMap;
 
-use crate::term::{DefId, MatchNum, Op, Pattern};
+use crate::term::{DefId, Op, Pattern};
 
 use super::{encoder::Labels, Book, Name, ReadbackError, Tag, Term};
 
@@ -28,7 +28,7 @@ impl<'term> TermHole<'term> {
   }
   fn erase(self) -> bool {
     match self {
-      TermHole::Variable(a, b) => {
+      TermHole::Variable(a, _b) => {
         // TODO don't drop
         core::mem::forget(a);
         true
@@ -169,7 +169,7 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
     Name::from_num(self.name_idx - 1)
   }
   fn get_wire_uid(&mut self, wire: Wire) -> WireUid {
-    (wire.load_target().wire().as_ptr() as usize).min(wire.as_ptr() as usize)
+    (wire.load_target().wire().0 as usize).min(wire.0 as usize)
   }
   fn read_pos(&mut self, wire: Wire, term: TermHole<'term>) {
     use hvmc::run::Tag as RtTag;
@@ -295,12 +295,12 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
               nxt: hole(),
             },
             |term: &mut Term, l| {
-              let Term::Let { pat: Pattern::Sup { tag, fst, snd }, val, nxt } = term else { unreachable!() };
+              let Term::Let { pat: Pattern::Sup { tag: _, fst, snd }, val, nxt } = term else { unreachable!() };
               (l.loan_mut(val), l.loan_mut(fst), l.loan_mut(snd), l.loan_mut(nxt))
             },
           );
-          let Pattern::Var { nam: fst } = fst else { unreachable!() };
-          let Pattern::Var { nam: snd } = snd else { unreachable!() };
+          let Pattern::Var { nam: _fst } = fst else { unreachable!() };
+          let Pattern::Var { nam: _snd } = snd else { unreachable!() };
           term.place(val);
           *nxt = Term::Var { nam: fst_name };
           self.read_pos(port.p1, dup.into());
@@ -362,7 +362,7 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
 
           *into = Term::Lam { tag, nam: Some(nam), bod: hole() };
           // Fill it
-          let Term::Lam { ref mut bod, ref mut nam, .. } = into else { unreachable!() };
+          let Term::Lam { ref mut bod,  .. } = into else { unreachable!() };
           self.read_pos(port.p1, var_box.into());
           self.read_neg(port.p2, bod);
         } else {
@@ -563,7 +563,7 @@ pub fn readback(net: &mut Net, labels: &Labels, host: &Host, book: &Book) -> Box
   let mut term = Box::new(Term::Era);
   let root = net.root.clone();
   Reader { net, vars: IndexMap::new(), labels, name_idx: 0, pats: vec![], host, book, errors: vec![] }
-    .read_neg(root.unwrap(), &mut term);
+    .read_neg(root, &mut term);
   term
 }
 
@@ -573,7 +573,7 @@ pub fn readback_and_resugar(net: &mut Net, labels: &Labels, host: &Host, book: &
   let vars = {
     let mut reader =
       Reader { net, vars: IndexMap::new(), labels, name_idx: 0, pats: vec![], host, book, errors: vec![] };
-    reader.read_neg(root.unwrap(), &mut term);
+    reader.read_neg(root, &mut term);
     core::mem::take(&mut reader.vars)
   };
 

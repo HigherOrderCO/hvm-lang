@@ -439,8 +439,8 @@ impl Term {
   pub fn new_native_match(
     scrutinee: Self,
     zero_term: Self,
-    mut succ_label: Option<Name>,
-    mut succ_term: Self,
+    succ_label: Option<Name>,
+    succ_term: Self,
   ) -> Self {
     let zero = (Pattern::Num { mat: MatchNum::Zero }, zero_term);
     let succ =
@@ -459,17 +459,18 @@ impl Pattern {
       match pat {
         Pattern::Var { nam } => set.push(nam),
         Pattern::Lnk { nam } => set.push(nam),
-        Pattern::Ctr { nam, args } => {
+        Pattern::Ctr { nam: _, args } => {
           args.iter().for_each(|x| go(x, set));
         }
-        Pattern::Num { mat } => {
-          todo!();
+        Pattern::Num { mat: MatchNum::Zero } => {}
+        Pattern::Num { mat: MatchNum::Succ(succ) } => {
+          go(succ, set);
         }
         Pattern::Tup { fst, snd } => {
           go(fst, set);
           go(snd, set);
         }
-        Pattern::Sup { tag, fst, snd } => {
+        Pattern::Sup { tag: _, fst, snd } => {
           go(fst, set);
           go(snd, set);
         }
@@ -487,17 +488,17 @@ impl Pattern {
       match pat {
         Pattern::Var { nam } => set.push(nam),
         Pattern::Lnk { nam } => set.push(nam),
-        Pattern::Ctr { nam, args } => {
+        Pattern::Ctr { nam: _, args } => {
           args.iter_mut().for_each(|x| go(x, set));
         }
-        Pattern::Num { mat } => {
+        Pattern::Num { mat: _ } => {
           todo!();
         }
         Pattern::Tup { fst, snd } => {
           go(fst, set);
           go(snd, set);
         }
-        Pattern::Sup { tag, fst, snd } => {
+        Pattern::Sup { tag: _, fst, snd } => {
           go(fst, set);
           go(snd, set);
         }
@@ -509,10 +510,19 @@ impl Pattern {
     go(self, &mut set);
     set.into_iter()
   }
-
+  pub fn is_var_like(&self) -> bool {
+    match self {
+      Pattern::Lnk { .. } | Pattern::Var { .. } | Pattern::Era => true,
+      _ => true,
+    }
+  }
   pub fn is_flat(&self) -> bool {
     match self {
-      _ => todo!(),
+      Pattern::Var { .. } | Pattern::Lnk { .. } | Pattern::Implicit | Pattern::Era => true,
+      Pattern::Tup { fst, snd } | Pattern::Sup { fst, snd, .. } => fst.is_var_like() && snd.is_var_like(),
+      Pattern::Ctr { args, .. } => args.iter().all(|x| x.is_flat()),
+      Pattern::Num { mat: MatchNum::Zero } => true,
+      Pattern::Num { mat: MatchNum::Succ(p) } => p.is_var_like(),
     }
   }
 }
@@ -538,8 +548,8 @@ impl From<&Pattern> for Term {
     match value {
       Pattern::Var { nam } => Term::Var { nam: nam.clone() },
       Pattern::Lnk { nam } => Term::Lnk { nam: nam.clone() },
-      Pattern::Ctr { nam, args } => todo!(),
-      Pattern::Num { mat } => todo!(),
+      Pattern::Ctr { nam: _, args: _ } => todo!(),
+      Pattern::Num { mat: _ } => todo!(),
       Pattern::Tup { fst, snd } => {
         Term::Tup { fst: Box::new(fst.as_ref().into()), snd: Box::new(snd.as_ref().into()) }
       }

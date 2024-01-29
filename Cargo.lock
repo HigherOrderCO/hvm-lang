@@ -205,7 +205,7 @@ checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 [[package]]
 name = "hvm-core"
 version = "0.2.11"
-source = "git+https://github.com/HigherOrderCO/hvm-core?branch=ptr-refactor-nonnull#ccd804dfbdceee2c77af4a36a45238b645635455"
+source = "git+https://github.com/HigherOrderCO/hvm-core?branch=ptr-refactor#60d52780e628d372c104ca46d9dc3db295d06135"
 dependencies = [
  "nohash-hasher",
 ]

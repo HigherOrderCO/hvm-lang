@@ -15,7 +15,6 @@ pub fn book_to_tree(book: &Book, main: DefId) -> hvmc::ast::Book {
 
   for def in book.defs.values() {
     for rule in def.rules.iter() {
-      println!("{}", rule.body.display(&book.def_names));
       let net = term_to_compat_net(&rule.body, &mut labels);
 
       let name =
@@ -217,29 +216,37 @@ impl<'t, 'e> Encoder<'t, 'e> {
       Term::Match { scrutinee, arms } => {
         // It must be a zero-succ match.
         // because other matches get desugared
-        //debug_assert!(matches!(arms[0].0, Pattern::Num { MatchNum::Zero }));
-        //debug_assert!(matches!(arms[1].0, Pattern::Num { MatchNum::Succ(None))));
-        todo!();
+        debug_assert!(matches!(arms[0].0, Pattern::Num { mat: MatchNum::Zero }));
+        let Pattern::Num { mat: MatchNum::Succ(succ_pat) } = &arms[1].0 else { unreachable!() };
         let zero = &arms[0].1;
         let succ = &arms[1].1;
 
-        let ((zero_p, succ_p, ret), tree_box) = LoanedMut::loan_with(
+        let ((zero_p, succ_pat_p, succ_ret_p, ret), tree_box) = LoanedMut::loan_with(
           Tree::Mat {
-            sel: Box::new(Tree::Ctr { lab: 0, lft: Default::default(), rgt: Default::default() }),
+            sel: Box::new(Tree::Ctr {
+              lab: 0,
+              lft: Default::default(),
+              rgt: Box::new(Tree::Ctr { lab: 0, lft: Default::default(), rgt: Default::default() }),
+            }),
             ret: Default::default(),
           },
           |tree, l| {
-            let Tree::Mat { sel: box Tree::Ctr { lft: zero_p, rgt: succ_p, .. }, ret } = tree else {
+            let Tree::Mat {
+              sel: box Tree::Ctr { lft: zero_p, rgt: box Tree::Ctr { lft: succ_pat, rgt: succ_ret, .. }, .. },
+              ret,
+            } = tree
+            else {
               unreachable!()
             };
-            (l.loan_mut(zero_p), l.loan_mut(succ_p), l.loan_mut(ret))
+            (l.loan_mut(zero_p), l.loan_mut(succ_pat), l.loan_mut(succ_ret), l.loan_mut(ret))
           },
         );
 
         self.encode_term(scrutinee, Place::Tree(tree_box));
 
         self.encode_term(zero, Place::Hole(zero_p));
-        self.encode_term(succ, Place::Hole(succ_p));
+        self.encode_pat(succ_pat, Place::Hole(succ_pat_p));
+        self.encode_term(succ, Place::Hole(succ_ret_p));
         Place::Hole(ret)
       }
       Term::Let { pat, val, nxt } => {

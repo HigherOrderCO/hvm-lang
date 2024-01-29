@@ -11,6 +11,7 @@ const MAX_ITERS: usize = 100_000;
 /// If cross_refs, will deref and try to find the smallest net.
 /// Otherwise, just apply node~node interactions.
 pub fn pre_reduce_book(book: &mut BTreeMap<String, hvmc::ast::Net>, cross_refs: bool) -> Result<(), String> {
+  println!("{:#?}", book);
   let host = Host::new(book);
   for (nam, net) in book.iter_mut() {
     // Skip unnecessary work
@@ -29,7 +30,7 @@ pub fn pre_reduce_book(book: &mut BTreeMap<String, hvmc::ast::Net>, cross_refs: 
       // But I don't think this is the right way (even if it works).
       loop {
         iters += rt.reduce(MAX_ITERS);
-        if rt.root.as_ref().map(|x| x.load_target().tag() == Tag::Ref).unwrap_or(false) {
+        if rt.root.load_target().tag() == Tag::Ref {
           rt.expand();
         } else {
           break;

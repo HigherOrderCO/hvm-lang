@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::term::{Book, DefNames, MatchNum, Name, Pattern, Term};
+use crate::term::{Book, DefNames, Name, Term};
 
 impl Book {
   /// Decides if names inside a term belong to a Var or to a Ref.

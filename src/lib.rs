@@ -1,5 +1,4 @@
 #![feature(box_patterns)]
-#![feature(return_position_impl_trait_in_trait)]
 
 use std::time::Instant;
 
@@ -32,6 +31,7 @@ pub fn compile_book(book: &mut Book, opt_level: OptimizationLevel) -> Result<Com
   if opt_level >= OptimizationLevel::Heavy {
     prune_defs(&mut core_book);
   }
+
   Ok(CompileResult { core_book, labels: Labels::default(), warnings: vec![] })
 }
 
@@ -41,12 +41,13 @@ pub fn desugar_book(book: &mut Book, opt_level: OptimizationLevel) -> Result<Def
   book.encode_strs();
   book.generate_scott_adts();
   book.resolve_refs();
+  encode_pattern_matching(book)?;
+  println!("POST DESUGAR:\n{}", book);
   book.unscope_vars();
 
-  //println!("{}", book);
-  //encode_pattern_matching(book)?;
+  println!("POST UNSCOPE:\n{}", book);
   book.linearize_vars();
-  //println!("{}", book);
+  println!("POST LINEARIZE\n{}", book);
   if opt_level >= OptimizationLevel::Heavy {
     book.eta_reduction();
   }
@@ -61,15 +62,15 @@ pub fn desugar_book(book: &mut Book, opt_level: OptimizationLevel) -> Result<Def
 }
 
 pub fn encode_pattern_matching(book: &mut Book) -> Result<(), String> {
-  /*book.resolve_ctrs_in_pats();
+  book.desugar_implicit_match_binds();
+  book.resolve_ctrs_in_pats();
   book.check_unbound_pats()?;
   //  book.desugar_let_destructors();
-  book.desugar_implicit_match_binds();
   book.extract_matches()?;
   book.flatten_rules();
   let def_types = book.infer_def_types()?;
   book.check_exhaustive_patterns(&def_types)?;
-  book.encode_pattern_matching_functions(&def_types);**/
+  book.encode_pattern_matching_functions(&def_types);
   Ok(())
 }
 
@@ -77,8 +78,8 @@ pub fn run_book(
   mut book: Book,
   mem_size: usize,
   parallel: bool,
-  debug: bool,
-  linear: bool,
+  _debug: bool,
+  _linear: bool,
   opt_level: OptimizationLevel,
 ) -> Result<(Term, DefNames, RunInfo), String> {
   let CompileResult { core_book, labels, warnings } = compile_book(&mut book, opt_level)?;
@@ -89,6 +90,7 @@ pub fn run_book(
     }
     return Err("Could not run the code because of the previous warnings".into());
   }
+
   /*
     fn debug_hook(net: &Net, book: &Book, labels: &Labels, linear: bool) {
       let net = hvmc_to_net(net);
@@ -101,7 +103,7 @@ pub fn run_book(
     }
     let debug_hook = if debug { Some(|net: &_| debug_hook(net, &book, &labels, linear)) } else { None };
   */
-  let debug_hook = Some(|a: &hvmc::ast::Net| ());
+  let debug_hook = Some(|_a: &hvmc::ast::Net| ());
   let host = Host::new(&core_book);
   let ((area, mut res_inet), stats) = run_compiled(&host, mem_size, parallel, debug_hook);
   let res_term = crate::term::readback::readback_and_resugar(&mut res_inet, &labels, &host, &book);

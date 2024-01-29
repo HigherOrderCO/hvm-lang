@@ -51,7 +51,10 @@ impl Term {
                   ctr_args.iter().map(|x| Pattern::Var { nam: Name(format!("{scrutinee}.{x}")) }).collect();
               }
             }
-            Pattern::Num { .. } => (), // TODO
+            Pattern::Num { mat: MatchNum::Succ(q @ box Pattern::Implicit) } => {
+              *q = Box::new(Pattern::Var { nam: Name(format!("{scrutinee}-1")) });
+            }
+            Pattern::Num { .. } => (),
             Pattern::Tup { .. } => (),
             Pattern::Sup { .. } => (),
             Pattern::Implicit => (),

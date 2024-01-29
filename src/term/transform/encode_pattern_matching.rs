@@ -76,9 +76,15 @@ fn make_rule_body(mut body: Term, pats: &[Pattern]) -> Term {
           body = Term::Lam { tag: Tag::Static, nam: Some(nam.clone()), bod: Box::new(body) }
         }
       }
-      Pattern::Num { .. } => {
-        todo!()
-        //body = Term::Lam { tag: Tag::Static, nam: nam.clone(), bod: Box::new(body) }
+      Pattern::Num { mat: MatchNum::Zero } => (),
+      Pattern::Num { mat: MatchNum::Succ(p) } => {
+        let tmpnam = Name::new("%succ%0");
+
+        body = Term::Let {
+          pat: Pattern::Var { nam: tmpnam.clone() },
+          val: Box::new(p.as_ref().into()),
+          nxt: Box::new(Term::Lam { tag: Tag::Static, nam: Some(tmpnam.clone()), bod: Box::new(body) }),
+        }
       }
       pat @ Pattern::Tup { .. } => {
         let tup = Name::new("%0");
@@ -130,14 +136,17 @@ fn make_pattern_matching_case(
     let is_adt_case = crnt_rules
       .iter()
       .any(|rule_idx| matches!(def.rules[*rule_idx].pats[crnt_arg_idx], Pattern::Ctr { .. }));
-    let is_num_case = crnt_rules
-      .iter()
-      .any(|rule_idx| matches!(def.rules[*rule_idx].pats[crnt_arg_idx], Pattern::Num { .. }));
+    let is_num_case = crnt_rules.iter().fold(None, |a, rule_idx| {
+      a.or(match &def.rules[*rule_idx].pats[crnt_arg_idx] {
+        Pattern::Num { mat: MatchNum::Succ(x) } => Some(x.clone()),
+        _ => None,
+      })
+    });
     if is_adt_case {
       // Current arg is pattern matching, encode the pattern matching call
       make_adt_pattern_matching_case(book, def_type, def_id, crnt_name, crnt_rules, match_path);
-    } else if is_num_case {
-      make_num_pattern_matching_case(book, def_type, def_id, crnt_name, crnt_rules, match_path);
+    } else if let Some(succ_pat) = is_num_case {
+      make_num_pattern_matching_case(book, def_type, def_id, crnt_name, crnt_rules, match_path, succ_pat);
     } else {
       // Current arg is not pattern matching, call next subfunction passing this arg.
       make_non_pattern_matching_case(book, def_type, def_id, crnt_name, crnt_rules, match_path);
@@ -280,6 +289,7 @@ fn make_num_pattern_matching_case(
   crnt_name: &Name,
   crnt_rules: Vec<usize>,
   match_path: Vec<Pattern>,
+  succ_pattern: Box<Pattern>,
 ) {
   use MatchNum::*;
 
@@ -298,7 +308,7 @@ fn make_num_pattern_matching_case(
 
   let make_next_fn_name = |ctr_name: &MatchNum| Name(format!("{crnt_name}$P{ctr_name}"));
 
-  let arms = [Zero, Succ(Box::new(Pattern::Implicit))]
+  let arms = [Zero, Succ(succ_pattern)]
     .into_iter()
     .map(|next_ctr| {
       let def = &book.defs[def_id];
@@ -471,7 +481,7 @@ impl Term {
       }
     }
 
-    let mut term = self.clone();
+    let term = self.clone();
     //term.make_var_names_unique();
     //term.linearize_vars();
 

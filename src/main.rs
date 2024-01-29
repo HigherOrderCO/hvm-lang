@@ -1,5 +1,3 @@
-#![feature(return_position_impl_trait_in_trait)]
-
 use clap::{Parser, ValueEnum};
 use hvmc::ast::show_book;
 use hvml::{
