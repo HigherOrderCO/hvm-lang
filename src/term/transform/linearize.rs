@@ -80,8 +80,8 @@ impl Linearizer {
   }
   pub fn linearize_term(&mut self, term: &mut Term) {
     match term {
-      Term::Chn { nam, bod, .. } => {
-        replace_with_or_default(nam, |x| self.new_bind(x));
+      Term::Lam { pat, bod, .. } => {
+        self.linearize_pat(pat);
         self.linearize_term(bod)
       }
       Term::Lnk { nam } => {
@@ -160,7 +160,6 @@ impl Linearizer {
         tail_name = out_wire;
       }
     } else {
-      println!("ERA {:?} {}", tail_name, binder);
       term = Term::Let {
         pat: if binder { Pattern::Lnk { nam: tail_name.clone() } } else { Pattern::Era },
         val: Box::new(if binder { Term::Era } else { Term::Lnk { nam: tail_name.clone() } }),

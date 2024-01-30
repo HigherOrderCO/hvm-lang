@@ -58,8 +58,8 @@ pub fn infer_arg_type<'a>(
       Pattern::Tup { .. } => Type::Tup,
       Pattern::Sup { .. } => Type::Sup,
       Pattern::Num { .. } => Type::Num,
-      Pattern::Implicit => todo!(),
-      Pattern::Era => todo!(),
+      Pattern::Era => Type::Any,
+      Pattern::Implicit => unreachable!(),
     };
     unify(pat_type, &mut arg_type)?
   }

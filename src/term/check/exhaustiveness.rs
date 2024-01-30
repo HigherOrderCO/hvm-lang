@@ -39,10 +39,10 @@ fn check_pattern(
           let pat = &rules[rule_idx].pats[match_path.len()];
           match pat {
             // Rules with a var pattern are relevant to all constructors.
-            Pattern::Var { .. } => next_rules_to_check.values_mut().for_each(|x| x.push(rule_idx)),
+            Pattern::Var { .. } | Pattern::Era  => next_rules_to_check.values_mut().for_each(|x| x.push(rule_idx)),
             Pattern::Ctr { nam: ctr_nam, .. } => next_rules_to_check.get_mut(ctr_nam).unwrap().push(rule_idx),
             // We already type checked, so no other patterns will appear here.
-            _ => unreachable!(),
+            _ => unreachable!("{}", pat),
           }
         }
         next_rules_to_check

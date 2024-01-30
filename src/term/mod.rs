@@ -60,7 +60,7 @@ pub struct Rule {
   pub body: Term,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MatchNum {
   Zero,
   Succ(Box<Pattern>),
@@ -74,7 +74,7 @@ pub enum Tag {
   Static,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum Term {
   /// Like a scopeless lambda, where the variable can occur outside the body
   Chn {
@@ -107,15 +107,8 @@ pub enum Term {
   },
   Lam {
     tag: Tag,
-    nam: Option<Name>,
+    pat: Box<Pattern>,
     bod: Box<Term>,
-  },
-  Dup {
-    tag: Tag,
-    fst: Option<Name>,
-    snd: Option<Name>,
-    val: Box<Term>,
-    nxt: Box<Term>,
   },
   Tup {
     fst: Box<Term>,
@@ -145,7 +138,7 @@ pub enum Term {
   Era,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Pattern {
   Lnk {
     nam: Name,
@@ -323,11 +316,14 @@ impl Term {
     })
   }
 
-  /// Substitute the occurences of a variable in a term with the given term.
+  /// Substitute the occurences of a non-scopeless variable in a term with the given term.
   pub fn subst(&mut self, from: &Name, to: &Term) {
     match self {
-      Term::Lam { nam: Some(nam), .. } if nam == from => (),
-      Term::Lam { bod, .. } => bod.subst(from, to),
+      Term::Lam { bod, pat, .. } => {
+        if !pat.bound_names().contains(from) {
+          bod.subst(from, to)
+        }
+      },
       Term::Var { nam } if nam == from => *self = to.clone(),
       Term::Var { .. } => (),
       // Only substitute scoped variables.
@@ -336,12 +332,6 @@ impl Term {
       Term::Let { pat, val, nxt } => {
         val.subst(from, to);
         if !pat.occurs(from) {
-          nxt.subst(from, to);
-        }
-      }
-      Term::Dup { tag: _, fst, snd, val, nxt } => {
-        val.subst(from, to);
-        if fst.as_ref().map_or(true, |fst| fst != from) && snd.as_ref().map_or(true, |snd| snd != from) {
           nxt.subst(from, to);
         }
       }
@@ -370,14 +360,15 @@ impl Term {
   pub fn free_vars(&self) -> IndexMap<Name, u64> {
     fn go(term: &Term, free_vars: &mut IndexMap<Name, u64>) {
       match term {
-        Term::Lam { nam: Some(nam), bod, .. } => {
+        Term::Lam { pat, bod, .. } => {
           let mut new_scope = IndexMap::new();
           go(bod, &mut new_scope);
-          new_scope.remove(nam);
+          for i in pat.bound_names() {
+            new_scope.remove(i);
+          }
 
           free_vars.extend(new_scope);
         }
-        Term::Lam { nam: None, bod, .. } => go(bod, free_vars),
         Term::Var { nam } => *free_vars.entry(nam.clone()).or_default() += 1,
         Term::Chn { bod, .. } => go(bod, free_vars),
         Term::Lnk { .. } => {}
@@ -390,17 +381,6 @@ impl Term {
           for bind in pat.bound_names() {
             new_scope.remove(bind);
           }
-
-          free_vars.extend(new_scope);
-        }
-        Term::Dup { fst, snd, val, nxt, .. } => {
-          go(val, free_vars);
-
-          let mut new_scope = IndexMap::new();
-          go(nxt, &mut new_scope);
-
-          fst.as_ref().map(|fst| new_scope.remove(fst));
-          snd.as_ref().map(|snd| new_scope.remove(snd));
 
           free_vars.extend(new_scope);
         }

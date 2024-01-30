@@ -39,13 +39,13 @@ pub fn check_uses<'a>(
 ) -> Result<(), String> {
   // TODO: Don't stop at the first error
   match term {
-    Term::Lam { nam, bod, .. } => {
-      if let Some(nam) = nam {
-        push_scope(nam, scope)
+    Term::Lam { pat, bod, .. } => {
+      for nam in pat.bound_names() {
+        push_scope(nam, scope);
       };
       check_uses(bod, scope, globals)?;
-      if let Some(nam) = nam {
-        pop_scope(nam, scope)
+      for nam in pat.bound_names() {
+        pop_scope(nam, scope);
       };
     }
     Term::Var { nam } => {
@@ -77,22 +77,6 @@ pub fn check_uses<'a>(
       check_uses(nxt, scope, globals)?;
       pop_scope(fst, scope);
       pop_scope(snd, scope);
-    }
-    Term::Dup { fst, snd, val, nxt, .. } => {
-      check_uses(val, scope, globals)?;
-      if let Some(fst) = fst {
-        push_scope(fst, scope)
-      };
-      if let Some(snd) = snd {
-        push_scope(snd, scope)
-      };
-      check_uses(nxt, scope, globals)?;
-      if let Some(fst) = fst {
-        pop_scope(fst, scope)
-      };
-      if let Some(snd) = snd {
-        pop_scope(snd, scope)
-      };
     }
     Term::Let { .. } => unreachable!(),
     Term::App { fun, arg, .. } => {

@@ -40,7 +40,7 @@ impl Term {
           }
         }
         Term::Lam { bod, .. } | Term::Chn { bod, .. } => bod.find_used_definitions(used, defs),
-        Term::Let { val, nxt, .. } | Term::Dup { val, nxt, .. } => {
+        Term::Let { val, nxt, .. } => {
           val.find_used_definitions(used, defs);
           nxt.find_used_definitions(used, defs);
         }

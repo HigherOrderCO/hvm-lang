@@ -21,12 +21,12 @@ impl Term {
   }
   pub fn display<'a>(&'a self, def_names: &'a DefNames) -> impl Display + 'a {
     DisplayFn(move |f| match self {
-      Term::Lam { tag, nam, bod } => {
+      Term::Lam { tag, pat, bod } => {
         write!(
           f,
           "{}λ{} {}",
           tag.display_padded(),
-          nam.clone().unwrap_or(Name::new("*")),
+          pat,
           bod.display(def_names)
         )
       }
@@ -53,15 +53,6 @@ impl Term {
           ),
         )
       }
-      Term::Dup { tag, fst, snd, val, nxt } => write!(
-        f,
-        "let{} {{{} {}}} = {}; {}",
-        tag.display(),
-        fst.as_ref().map(|x| x.as_str()).unwrap_or("*"),
-        snd.as_ref().map(|x| x.as_str()).unwrap_or("*"),
-        val.display(def_names),
-        nxt.display(def_names)
-      ),
       Term::Sup { tag, fst, snd } => {
         write!(f, "{}{{{} {}}}", tag.display_padded(), fst.display(def_names), snd.display(def_names))
       }

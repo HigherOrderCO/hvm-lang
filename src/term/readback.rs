@@ -26,19 +26,6 @@ impl<'term> TermHole<'term> {
   fn place(self, target: &'term mut Term) {
     self.term().place(target)
   }
-  fn erase(self) -> bool {
-    match self {
-      TermHole::Variable(a, _b) => {
-        // TODO don't drop
-        core::mem::forget(a);
-        true
-      }
-      TermHole::Term(a) => {
-        core::mem::forget(a);
-        false
-      }
-    }
-  }
   fn term(self) -> LoanedMut<'term, Term> {
     match self {
       TermHole::Variable(t, _) => t,
@@ -69,6 +56,7 @@ struct Reader<'book, 'area, 'term> {
   book: &'book Book,
   // Dups float in the top level
   pats: Vec<(ExtPattern, TermHole<'term>)>,
+  erased: Vec<TermHole<'term>>,
   host: &'book Host,
   name_idx: u64,
   errors: Vec<ReadbackError>,
@@ -90,8 +78,8 @@ impl Term {
     }
 
     match self {
-      Term::Lam { nam, bod, .. } => {
-        if let Some(nam) = nam {
+      Term::Lam { pat, bod, .. } => {
+        for nam in pat.bound_names_mut() {
           fix_name(nam, id_counter, bod);
         }
         bod.fix_names(id_counter, book);
@@ -104,16 +92,6 @@ impl Term {
           term.fix_names(id_counter, book);
           *self = term
         }
-      }
-      Term::Dup { fst, snd, val, nxt, .. } => {
-        val.fix_names(id_counter, book);
-        if let Some(fst) = fst {
-          fix_name(fst, id_counter, nxt);
-        };
-        if let Some(snd) = snd {
-          fix_name(snd, id_counter, nxt);
-        };
-        nxt.fix_names(id_counter, book);
       }
       Term::Chn { bod, .. } => bod.fix_names(id_counter, book),
       Term::App { fun: fst, arg: snd, .. }
@@ -164,6 +142,9 @@ impl Op {
 }
 
 impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
+  fn erase(&mut self, hole: TermHole<'term>) {
+    self.erased.push(hole);
+  }
   fn generate_name(&mut self) -> Name {
     self.name_idx += 1;
     Name::from_num(self.name_idx - 1)
@@ -190,13 +171,13 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
       }
       RtTag::Ref => {
         if port == Port::ERA {
-          term.erase();
+          self.erase(term);
         } else {
           todo!()
         };
       }
       RtTag::Num => {
-        term.erase();
+        self.erase(term);
       }
       RtTag::Op2 => {
         let port = port.traverse_node();
@@ -215,7 +196,7 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
       RtTag::Mat => {
         let port = port.traverse_node();
         let pred = self.generate_name();
-        let pred_var = Term::Var { nam: pred.clone() };
+        let pred_var = Term::Lnk { nam: pred.clone() };
         /*
         let (zero_ref, zero_box) = LoanedMut::loan(Box::new(zero));
         let (succ_ref, succ_box) = LoanedMut::loan(Box::new(succ));
@@ -282,7 +263,7 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
           });
           let fst_name = self.generate_name();
           let snd_name = self.generate_name();
-          let snd_var = Term::Var { nam: snd_name.clone() };
+          let snd_var = Term::Lnk { nam: snd_name.clone() };
           let snd_box = LoanedMut::new(snd_var);
           let ((val, fst, snd, nxt), dup) = LoanedMut::<'term, Term>::loan_with(
             Term::Let {
@@ -302,7 +283,7 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
           let Pattern::Var { nam: _fst } = fst else { unreachable!() };
           let Pattern::Var { nam: _snd } = snd else { unreachable!() };
           term.place(val);
-          *nxt = Term::Var { nam: fst_name };
+          *nxt = Term::Lnk { nam: fst_name };
           self.read_pos(port.p1, dup.into());
           self.read_pos(port.p2, snd_box.into());
         }
@@ -354,16 +335,16 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
         if port.lab % 2 == 0 {
           // Even labels are CON
           let nam = self.generate_name();
-          let var = Term::Var { nam: nam.clone() };
+          let var = Term::Lnk { nam: nam.clone() };
           let var_box = LoanedMut::new(var);
 
           let tag =
             self.labels.con.to_tag(if port.lab == 0 { None } else { Some((port.lab as u32 >> 1) - 1) });
 
-          *into = Term::Lam { tag, nam: Some(nam), bod: hole() };
+          *into = Term::Lam { tag, pat: Box::new(Pattern::Lnk { nam }), bod: hole() };
           // Fill it
-          let Term::Lam { ref mut bod,  .. } = into else { unreachable!() };
-          self.read_pos(port.p1, var_box.into());
+          let Term::Lam { ref mut bod, ref mut pat, .. } = into else { unreachable!() };
+          self.read_pos(port.p1, TermHole::Variable(var_box, pat));
           self.read_neg(port.p2, bod);
         } else {
           if port.lab != 1 {
@@ -400,7 +381,6 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
         | Term::Lnk { .. }
         | Term::Let { .. }
         | Term::Tup { .. }
-        | Term::Dup { .. }
         | Term::Sup { .. }
         | Term::Str { .. }
         | Term::Opx { .. }
@@ -432,26 +412,22 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
         let mut current_arm = None;
         for ctr in &adt.ctrs {
           self.deref(cur);
-          println!("{:?}", ctr);
-          println!("{:?}", adt_name);
           match cur {
-            Term::Lam { tag: Tag::Named(tag), nam, bod } if &*tag == adt_name => {
-              if let Some(nam) = nam {
-                if current_arm.is_some() {
-                  println!("{:?}", "Two arm");
-                  return self.error(ReadbackError::InvalidAdt);
-                }
-                current_arm = Some((nam.clone(), ctr))
+            Term::Lam { tag: Tag::Named(tag), pat: box Pattern::Era, box bod } if &*tag == adt_name => {
+              *cur = bod.clone();
+            }
+            Term::Lam { tag: Tag::Named(tag), pat: box Pattern::Lnk { nam }, box bod } if &*tag == adt_name => {
+              if current_arm.is_some() {
+                return self.error(ReadbackError::InvalidAdt);
               }
-              cur = bod;
+              current_arm = Some((nam.clone(), ctr));
+              *cur = bod.clone();
             }
             _ => {
-              println!("{:?}", "Two aaarm");
               return self.error(ReadbackError::InvalidAdt);
             }
           }
         }
-        println!("{:?}", current_arm);
         let Some(current_arm) = current_arm else {
           return self.error(ReadbackError::InvalidAdt);
         };
@@ -469,7 +445,7 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
           }
         }
         match cur {
-          Term::Var { nam } if nam == &current_arm.0 => {}
+          Term::Lnk { nam } if nam == &current_arm.0 => {}
           _ => return self.error(ReadbackError::InvalidAdt),
         }
         let def_id = self.book.def_names.def_id(current_arm.1.0).unwrap();
@@ -500,7 +476,7 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
                   let body = std::mem::take(arm_term);
                   *arm_term = Term::Lam {
                     tag: Tag::Static,
-                    nam: Some(nam.clone()),
+                    pat: Box::new(Pattern::Var { nam: nam.clone() }),
                     bod: Box::new(Term::App {
                       tag: Tag::Static,
                       fun: Box::new(body),
@@ -509,11 +485,8 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
                   };
                 }
                 match arm_term {
-                  Term::Lam { nam, bod, .. } => {
-                    args.push(match nam {
-                      Some(x) => Pattern::Var { nam: x.clone() },
-                      None => Pattern::Era,
-                    });
+                  Term::Lam { pat, bod, .. } => {
+                    args.push(pat.as_ref().clone());
                     arm_term = &mut **bod;
                   }
                   _ => unreachable!(),
@@ -533,7 +506,6 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
       Term::App { fun: fst, arg: snd, .. }
       | Term::Let { val: fst, nxt: snd, .. }
       | Term::Tup { fst, snd }
-      | Term::Dup { val: fst, nxt: snd, .. }
       | Term::Sup { fst, snd, .. }
       | Term::Opx { fst, snd, .. } => {
         self.resugar_adts(fst);
@@ -562,7 +534,7 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
 pub fn readback(net: &mut Net, labels: &Labels, host: &Host, book: &Book) -> Box<Term> {
   let mut term = Box::new(Term::Era);
   let root = net.root.clone();
-  Reader { net, vars: IndexMap::new(), labels, name_idx: 0, pats: vec![], host, book, errors: vec![] }
+  Reader { net, vars: IndexMap::new(), labels, name_idx: 0, pats: vec![], host, book, errors: vec![], erased: Vec::new() }
     .read_neg(root, &mut term);
   term
 }
@@ -570,12 +542,14 @@ pub fn readback(net: &mut Net, labels: &Labels, host: &Host, book: &Book) -> Box
 pub fn readback_and_resugar(net: &mut Net, labels: &Labels, host: &Host, book: &Book) -> Box<Term> {
   let mut term = Box::new(Term::Era);
   let root = net.root.clone();
-  let vars = {
+  let (vars, erased) = {
     let mut reader =
-      Reader { net, vars: IndexMap::new(), labels, name_idx: 0, pats: vec![], host, book, errors: vec![] };
+      Reader { net, vars: IndexMap::new(), labels, name_idx: 0, pats: vec![], host, book, errors: vec![], erased: Vec::new() };
     reader.read_neg(root, &mut term);
-    core::mem::take(&mut reader.vars)
+    (core::mem::take(&mut reader.vars),
+    core::mem::take(&mut reader.erased))
   };
+
 
   // Properly drop vars
   let vars: Vec<_> = vars
@@ -586,14 +560,30 @@ pub fn readback_and_resugar(net: &mut Net, labels: &Labels, host: &Host, book: &
     })
     .collect();
   let vars: LoanedMut<Vec<Term>> = vars.into();
+
+  let erased: Vec<_> = erased.into_iter().map(|i| match i {
+    TermHole::Variable(t, p) => {
+      *p = Pattern::Era;
+      t
+    },
+    TermHole::Term(t) => {
+      t
+    },
+  }).collect();
+  let erased: LoanedMut<Vec<Term>> = erased.into();
+
+  loaned::drop!(erased);
   loaned::drop!(vars);
 
+
   let mut reader =
-    Reader { net, vars: IndexMap::new(), labels, name_idx: 0, pats: vec![], host, book, errors: vec![] };
+    Reader { net, vars: IndexMap::new(), labels, name_idx: 0, pats: vec![], host, book, errors: vec![], erased: Vec::new() };
+
+
   assert!(reader.vars.is_empty());
   reader.resugar_adts(&mut term);
   if !reader.errors.is_empty() {
-    todo!("{:?}", reader.errors);
+    eprintln!("{:?}", reader.errors);
   }
   drop(reader);
   term

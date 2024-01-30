@@ -64,7 +64,6 @@ impl Term {
       }
       Term::App { fun: fst, arg: snd, .. }
       | Term::Tup { fst, snd }
-      | Term::Dup { val: fst, nxt: snd, .. }
       | Term::Sup { fst, snd, .. }
       | Term::Opx { fst, snd, .. } => {
         fst.resolve_ctrs_in_pats(is_ctr);

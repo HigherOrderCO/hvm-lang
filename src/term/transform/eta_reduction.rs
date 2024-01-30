@@ -17,19 +17,19 @@ impl Term {
   /// Expects variables to be linear.
   pub fn eta_reduction(&mut self) {
     match self {
-      Term::Lam { tag: lam_tag, nam: Some(lam_var), bod } => {
+      Term::Lam { tag: lam_tag, pat, bod } => {
         bod.eta_reduction();
+        let pat_term: Term = pat.as_ref().into();
         match bod.as_mut() {
-          Term::App { tag: arg_tag, fun, arg: box Term::Var { nam: var_nam } }
-            if lam_var == var_nam && lam_tag == arg_tag =>
+          Term::App { tag: arg_tag, fun, arg }
+            if arg.as_ref() == &pat_term && lam_tag == arg_tag =>
           {
             *self = std::mem::take(fun.as_mut());
           }
           _ => (),
         }
       }
-      Term::Lam { bod, .. } | Term::Chn { bod, .. } => bod.eta_reduction(),
-      Term::Let { pat: _, val, nxt } | Term::Dup { tag: _, fst: _, snd: _, val, nxt } => {
+      Term::Let { pat: _, val, nxt } => {
         val.eta_reduction();
         nxt.eta_reduction();
       }
@@ -45,6 +45,9 @@ impl Term {
         for (_pat, term) in arms {
           term.eta_reduction();
         }
+      }
+      Term::Chn { bod, .. } => {
+        bod.eta_reduction();
       }
       Term::Lnk { .. }
       | Term::Var { .. }

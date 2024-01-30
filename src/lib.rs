@@ -26,13 +26,13 @@ pub fn check_book(mut book: Book) -> Result<(), String> {
 
 pub fn compile_book(book: &mut Book, opt_level: OptimizationLevel) -> Result<CompileResult, String> {
   let main = desugar_book(book, opt_level)?;
-  let mut core_book = book_to_tree(book, main);
+  let (mut core_book, labels) = book_to_tree(book, main);
   pre_reduce_book(&mut core_book, opt_level >= OptimizationLevel::Heavy)?;
   if opt_level >= OptimizationLevel::Heavy {
     prune_defs(&mut core_book);
   }
 
-  Ok(CompileResult { core_book, labels: Labels::default(), warnings: vec![] })
+  Ok(CompileResult { core_book, labels, warnings: vec![] })
 }
 
 pub fn desugar_book(book: &mut Book, opt_level: OptimizationLevel) -> Result<DefId, String> {

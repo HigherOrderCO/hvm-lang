@@ -134,9 +134,9 @@ where
     // #tag? λx body
     let lam = tag(Tag::Static)
       .then_ignore(just(Token::Lambda))
-      .then(name_or_era())
+      .then(pattern())
       .then(term.clone())
-      .map(|((tag, name), body)| Term::Lam { tag, nam: name, bod: Box::new(body) })
+      .map(|((tag, pat), body)| Term::Lam { tag, pat: Box::new(pat), bod: Box::new(body) })
       .boxed();
 
     // #tag? λ$x body
@@ -155,27 +155,6 @@ where
       .then_ignore(just(Token::RBracket))
       .map(|((tag, fst), snd)| Term::Sup { tag, fst: Box::new(fst), snd: Box::new(snd) })
       .boxed();
-
-    // let #tag? {x1 x2} = body; next
-    let dup = just(Token::Let)
-      .ignore_then(tag(Tag::Auto))
-      .then_ignore(just(Token::LBracket))
-      .then(name_or_era())
-      .then(name_or_era())
-      .then_ignore(just(Token::RBracket))
-      .then_ignore(just(Token::Equals))
-      .then(term.clone())
-      .then_ignore(term_sep.clone())
-      .then(term.clone())
-      .map(|((((tag, fst), snd), val), next)| Term::Dup {
-        tag,
-        fst,
-        snd,
-        val: Box::new(val),
-        nxt: Box::new(next),
-      })
-      .boxed();
-
     // (x, y)
     let tup = term
       .clone()
@@ -270,7 +249,6 @@ where
       tup,
       global_lam,
       lam,
-      dup,
       let_,
       native_match,
       match_,
@@ -304,6 +282,14 @@ where
       .map(|(fst, snd)| Pattern::Tup { fst: Box::new(fst), snd: Box::new(snd) })
       .boxed();
 
+    let sup = tag(Tag::Auto)
+      .then_ignore(just(Token::LBracket))
+      .then(pattern.clone())
+      .then(pattern.clone())
+      .then_ignore(just(Token::RBracket))
+      .map(|((tag, fst), snd)| Pattern::Sup { tag, fst: Box::new(fst), snd: Box::new(snd) })
+      .boxed();
+
     let zero = select!(Token::Num(0) => Pattern::Num { mat: MatchNum::Zero });
 
     let succ = just(Token::Add)
@@ -317,7 +303,7 @@ where
       })
       .boxed();
 
-    choice((zero, succ, var, ctr, tup))
+    choice((zero, succ, var, ctr, tup, sup))
   })
 }
 

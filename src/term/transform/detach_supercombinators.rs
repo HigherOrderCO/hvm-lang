@@ -80,13 +80,13 @@ impl Term {
   ) {
     fn go(term: &mut Term, depth: usize, term_info: &mut TermInfo) -> bool {
       match term {
-        Term::Lam { nam, bod, .. } => {
+        Term::Lam { pat, bod, .. } => {
           let parent_scope = term_info.replace_scope(HashSet::new());
 
           let is_super = go(bod, depth + 1, term_info);
 
-          if let Some(nam) = nam {
-            term_info.provide(nam)
+          for i in pat.bound_names() {
+            term_info.provide(i)
           };
 
           if is_super && !term.is_id() && depth != 0 && term_info.check() {
@@ -123,19 +123,6 @@ impl Term {
 
           term_info.provide(fst);
           term_info.provide(snd);
-
-          val_is_super && nxt_is_supper
-        }
-        Term::Dup { fst, snd, val, nxt, .. } => {
-          let val_is_super = go(val, depth + 1, term_info);
-          let nxt_is_supper = go(nxt, depth + 1, term_info);
-
-          if let Some(fst) = fst {
-            term_info.provide(fst)
-          };
-          if let Some(snd) = snd {
-            term_info.provide(snd)
-          };
 
           val_is_super && nxt_is_supper
         }
@@ -179,7 +166,7 @@ impl Term {
   // We don't want to detach id function, since that's not a net gain in performance or space
   fn is_id(&self) -> bool {
     match self {
-      Term::Lam { nam: Some(lam_nam), bod: box Term::Var { nam: var_nam }, .. } => lam_nam == var_nam,
+      Term::Lam { pat: box Pattern::Var { nam: lam_nam }, bod: box Term::Var { nam: var_nam }, .. } => lam_nam == var_nam,
       _ => false,
     }
   }

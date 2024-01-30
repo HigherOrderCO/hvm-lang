@@ -47,7 +47,6 @@ impl Term {
       Term::Lam { bod, .. } | Term::Chn { bod, .. } => bod.encode_str(),
       Term::App { fun: fst, arg: snd, .. }
       | Term::Let { val: fst, nxt: snd, .. }
-      | Term::Dup { val: fst, nxt: snd, .. }
       | Term::Tup { fst, snd }
       | Term::Sup { fst, snd, .. }
       | Term::Opx { fst, snd, .. } => {

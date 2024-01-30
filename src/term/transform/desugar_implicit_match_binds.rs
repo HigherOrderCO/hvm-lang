@@ -63,9 +63,8 @@ impl Term {
           body.desugar_implicit_match_binds(ctrs, adts);
         }
       }
-      Term::Let { pat: Pattern::Var { .. }, val: fst, nxt: snd }
+      Term::Let { val: fst, nxt: snd, .. }
       | Term::App { fun: fst, arg: snd, .. }
-      | Term::Dup { val: fst, nxt: snd, .. }
       | Term::Tup { fst, snd }
       | Term::Sup { fst, snd, .. }
       | Term::Opx { fst, snd, .. } => {
@@ -75,14 +74,14 @@ impl Term {
       Term::Lam { bod, .. } | Term::Chn { bod, .. } => {
         bod.desugar_implicit_match_binds(ctrs, adts);
       }
-      Term::Era
-      | Term::Ref { .. }
+      Term::Ref { .. }
       | Term::Num { .. }
-      | Term::Str { .. }
+      | Term::Era
       | Term::Lnk { .. }
       | Term::Var { .. } => (),
-      Term::Let { pat: _, .. } => {
-        unreachable!("Expected destructor let expressions to have been desugared already")
+
+      Term::Str { .. }  => {
+        unreachable!("Expected string expressions to have been desugared already")
       }
     }
   }

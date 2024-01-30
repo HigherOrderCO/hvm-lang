@@ -136,8 +136,7 @@ impl Term {
         bod.extract_matches(def_name, book, match_count)?;
       }
       Term::App { fun: fst, arg: snd, .. }
-      | Term::Let { pat: Pattern::Var { .. }, val: fst, nxt: snd }
-      | Term::Dup { val: fst, nxt: snd, .. }
+      | Term::Let { val: fst, nxt: snd, .. }
       | Term::Tup { fst, snd }
       | Term::Sup { fst, snd, .. }
       | Term::Opx { fst, snd, .. } => {
@@ -152,9 +151,6 @@ impl Term {
       | Term::Era => {}
 
       Term::Match { .. } => unreachable!("Scrutinee of match expression should have been extracted already"),
-      Term::Let { pat, .. } => {
-        unreachable!("Destructor let expression should have been desugared already. {pat}")
-      }
     }
 
     Ok(())

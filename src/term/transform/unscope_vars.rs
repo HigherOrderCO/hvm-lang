@@ -82,22 +82,11 @@ impl<'t> Unscoper<'t> {
         let Term::Lnk { nam } = term else { unreachable!() };
         self.push_var(nam)
       }
-      term @ Term::Lam { .. } => {
-        replace_with::replace_with_or_default(term, |term| {
-          let Term::Lam { tag, nam, bod } = term else { unreachable!() };
-          Term::Chn { tag, nam: nam.unwrap(), bod }
-        });
-        let Term::Chn { nam, tag: _, bod } = term else { unreachable!() };
-        let nam_clone = nam.clone();
-        self.push_scope(nam);
+      Term::Lam { pat, bod, .. } => {
+        self.push_depths();
+        self.unscope_pat(pat);
         self.unscope_term(bod);
-        self.pop_scope(&nam_clone);
-      }
-      Term::Dup { tag: _, fst, snd, val, nxt } => {
-        *fst = fst.as_mut().map(|x| self.name_for(x));
-        *snd = snd.as_mut().map(|x| self.name_for(x));
-        self.unscope_term(val);
-        self.unscope_term(nxt);
+        self.pop_depths();
       }
 
       Term::Sup { tag: _, fst, snd } => {
@@ -133,7 +122,13 @@ impl<'t> Unscoper<'t> {
         }
       }
 
-      Term::Chn { bod, .. } => self.unscope_term(bod),
+      term @ Term::Chn { .. } => {
+        replace_with::replace_with_or_default(term, |term| {
+          let Term::Chn { tag, nam, bod } = term else { unreachable!()};
+          Term::Lam { tag, pat: Box::new(Pattern::Lnk { nam }), bod }
+        });
+        self.unscope_term(term);
+      }
       Term::Lnk { .. } | Term::Era | Term::Ref { .. } | Term::Str { .. } | Term::Num { .. } => (),
     }
   }
@@ -145,7 +140,11 @@ impl<'t> Unscoper<'t> {
         let Pattern::Lnk { nam } = pat else { unreachable!() };
         self.push_scope(nam)
       }
-      Pattern::Ctr { nam: _, args: _ } => todo!(),
+      Pattern::Ctr { nam, args } => {
+        println!("{:?}", nam);
+        println!("{:?}", args);
+        todo!();
+      },
       Pattern::Num { mat } => match mat {
         term::MatchNum::Zero => (),
         term::MatchNum::Succ(p) => self.unscope_pat(p),

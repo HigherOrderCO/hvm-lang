@@ -63,7 +63,6 @@ impl Term {
       }
       Term::App { fun: fst, arg: snd, .. }
       | Term::Tup { fst, snd }
-      | Term::Dup { val: fst, nxt: snd, .. }
       | Term::Sup { fst, snd, .. }
       | Term::Opx { fst, snd, .. } => {
         fst.check_unbound_pats(is_ctr, def_name)?;

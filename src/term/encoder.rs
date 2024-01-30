@@ -9,7 +9,7 @@ use crate::term::{MatchNum, Pattern};
 
 use super::{Book, DefId, DefNames, Name, Op, Tag, Term};
 
-pub fn book_to_tree(book: &Book, main: DefId) -> hvmc::ast::Book {
+pub fn book_to_tree(book: &Book, main: DefId) -> (hvmc::ast::Book, Labels) {
   let mut nets = BTreeMap::new();
   let mut labels = Labels::default();
 
@@ -27,7 +27,7 @@ pub fn book_to_tree(book: &Book, main: DefId) -> hvmc::ast::Book {
   labels.con.finish();
   labels.dup.finish();
 
-  nets
+  (nets, labels)
 }
 
 fn def_id_to_hvmc_name(def_id: &DefId) -> String {
@@ -162,37 +162,25 @@ impl<'t, 'e> Encoder<'t, 'e> {
   fn _encode_term(&mut self, term: &'e Term) -> Place<'t, 'e> {
     match term {
       Term::Lnk { nam } => Place::Var(nam),
-      Term::Chn { tag, nam, bod } => {
-        let lab = (self.labels.con.generate(tag).unwrap_or(0) << 1) as u16;
+      Term::Lam { tag, pat, bod } => {
+        println!("{:?}", tag);
+        let lab = (self.labels.con.generate(tag).map(|x| x+1).unwrap_or(0) << 1) as u16;
         let (tree, lft, rgt) = create_ctr(lab);
-        self.link(Place::Var(nam), Place::Hole(lft));
+        self.encode_pat(pat, Place::Hole(lft));
         self.encode_term(bod.as_ref(), Place::Hole(rgt));
         Place::Tree(tree)
       }
       Term::Var { nam } => Place::Var(nam),
-      Term::Lam { .. } => unreachable!(),
       Term::App { tag, fun, arg } => {
-        let lab = (self.labels.con.generate(tag).unwrap_or(0) << 1) as u16;
+        let lab = (self.labels.con.generate(tag).map(|x| x+1).unwrap_or(0) << 1) as u16;
         let (tree, lft, rgt) = create_ctr(lab);
         self.encode_term(fun.as_ref(), Place::Tree(tree));
         self.encode_term(arg.as_ref(), Place::Hole(lft));
         Place::Hole(rgt)
       }
-      Term::Dup { tag, fst, snd, val, nxt } => {
-        let lab = ((self.labels.dup.generate(tag).unwrap_or(0) << 1) + 3) as u16;
-        let (tree, lft, rgt) = create_ctr(lab);
-        self.encode_term(val, Place::Tree(tree));
-        if let Some(fst) = fst {
-          self.link(Place::Var(fst), Place::Hole(lft));
-        }
-        if let Some(snd) = snd {
-          self.link(Place::Var(snd), Place::Hole(rgt));
-        }
-        self._encode_term(nxt)
-      }
       Term::Ref { def_id } => Place::Tree(LoanedMut::new(Tree::Ref { nam: def_id.0.clone() })),
       Term::Sup { tag, fst, snd } => {
-        let lab = ((self.labels.dup.generate(tag).unwrap_or(0) << 1) + 3) as u16;
+        let lab = ((self.labels.dup.generate(tag).map(|x| x+1).unwrap_or(0) << 1) + 3) as u16;
         let (tree, lft, rgt) = create_ctr(lab);
         self.encode_term(fst, Place::Hole(lft));
         self.encode_term(snd, Place::Hole(rgt));
@@ -266,7 +254,7 @@ impl<'t, 'e> Encoder<'t, 'e> {
       Pattern::Lnk { nam } => Place::Var(nam),
       Pattern::Var { nam } => Place::Var(nam),
       Pattern::Sup { tag, fst, snd } => {
-        let lab = ((self.labels.dup.generate(tag).unwrap_or(0) << 1) + 3) as u16;
+        let lab = ((self.labels.dup.generate(tag).map(|x| x+1).unwrap_or(0) << 1) + 3) as u16;
         let (tree, lft, rgt) = create_ctr(lab);
         self.encode_pat(fst, Place::Hole(lft));
         self.encode_pat(snd, Place::Hole(rgt));

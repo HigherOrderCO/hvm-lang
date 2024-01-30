@@ -23,13 +23,15 @@ impl Term {
 
 fn resolve_refs(term: &mut Term, def_names: &DefNames, scope: &mut HashMap<Name, usize>) {
   match term {
-    Term::Lam { nam, bod, .. } => {
-      if let Some(nam) = nam {
-        push_scope(nam.clone(), scope);
+    Term::Lam { pat, bod, .. } => {
+      for nam in pat.bound_names() {
+        push_scope(nam.clone(), scope)
       }
+
       resolve_refs(bod, def_names, scope);
-      if let Some(nam) = nam {
-        pop_scope(nam.clone(), scope);
+
+      for nam in pat.bound_names() {
+        pop_scope(nam.clone(), scope)
       }
     }
     Term::Let { pat, val, nxt } => {
@@ -43,22 +45,6 @@ fn resolve_refs(term: &mut Term, def_names: &DefNames, scope: &mut HashMap<Name,
 
       for nam in pat.bound_names() {
         pop_scope(nam.clone(), scope)
-      }
-    }
-    Term::Dup { tag: _, fst, snd, val, nxt } => {
-      resolve_refs(val, def_names, scope);
-      if let Some(fst) = fst {
-        push_scope(fst.clone(), scope);
-      }
-      if let Some(snd) = snd {
-        push_scope(snd.clone(), scope);
-      }
-      resolve_refs(nxt, def_names, scope);
-      if let Some(snd) = snd {
-        pop_scope(snd.clone(), scope);
-      }
-      if let Some(fst) = fst {
-        pop_scope(fst.clone(), scope);
       }
     }
 

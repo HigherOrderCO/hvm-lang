@@ -17,7 +17,6 @@ impl Term {
       Term::Let { pat: Pattern::Var { .. }, val: fst, nxt: snd }
       | Term::App { fun: fst, arg: snd, .. }
       | Term::Tup { fst, snd }
-      | Term::Dup { val: fst, nxt: snd, .. }
       | Term::Sup { fst, snd, .. }
       | Term::Opx { fst, snd, .. } => {
         fst.desugar_let_destructors();

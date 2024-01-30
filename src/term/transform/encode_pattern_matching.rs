@@ -25,9 +25,8 @@ fn make_non_pattern_matching_def(book: &mut Book, def_id: DefId) {
   let def = book.defs.get_mut(&def_id).unwrap();
   let rule = def.rules.first_mut().unwrap();
   for pat in rule.pats.iter().rev() {
-    let Pattern::Var { nam: var } = pat else { unreachable!() };
     let bod = std::mem::replace(&mut rule.body, Term::Era);
-    rule.body = Term::Lam { tag: Tag::Static, nam: Some(var.clone()), bod: Box::new(bod) };
+    rule.body = Term::Lam { tag: Tag::Static, pat: Box::new(pat.clone()), bod: Box::new(bod) };
   }
   rule.pats = vec![];
 }
@@ -63,49 +62,14 @@ fn make_rule_name(def_name: &Name, rule_idx: usize) -> Name {
 fn make_rule_body(mut body: Term, pats: &[Pattern]) -> Term {
   // Add the lambdas for the pattern variables
   for pat in pats.iter().rev() {
-    match pat {
-      Pattern::Implicit => todo!(),
-      Pattern::Era => body = Term::Lam { tag: Tag::Static, nam: None, bod: Box::new(body) },
-      Pattern::Var { nam } => {
-        body = Term::Lam { tag: Tag::Static, nam: Some(nam.clone()), bod: Box::new(body) }
-      }
-      Pattern::Lnk { nam } => body = Term::Chn { tag: Tag::Static, nam: nam.clone(), bod: Box::new(body) },
-      Pattern::Ctr { args: vars, .. } => {
-        for var in vars.iter().rev() {
-          let Pattern::Var { nam } = var else { unreachable!() };
-          body = Term::Lam { tag: Tag::Static, nam: Some(nam.clone()), bod: Box::new(body) }
-        }
-      }
-      Pattern::Num { mat: MatchNum::Zero } => (),
-      Pattern::Num { mat: MatchNum::Succ(p) } => {
-        let tmpnam = Name::new("%succ%0");
-
-        body = Term::Let {
-          pat: Pattern::Var { nam: tmpnam.clone() },
-          val: Box::new(p.as_ref().into()),
-          nxt: Box::new(Term::Lam { tag: Tag::Static, nam: Some(tmpnam.clone()), bod: Box::new(body) }),
-        }
-      }
-      pat @ Pattern::Tup { .. } => {
-        let tup = Name::new("%0");
-        body = Term::Lam {
-          tag: Tag::Static,
-          nam: Some(tup.clone()),
-          bod: Term::Let { pat: pat.clone(), val: Box::new(Term::Var { nam: tup }), nxt: Box::new(body) }
-            .into(),
-        };
-      }
-      pat @ Pattern::Sup { .. } => {
-        let tup = Name::new("%0");
-        body = Term::Lam {
-          tag: Tag::Static,
-          nam: Some(tup.clone()),
-          bod: Term::Let { pat: pat.clone(), val: Box::new(Term::Var { nam: tup }), nxt: Box::new(body) }
-            .into(),
-        };
-      }
-    }
-  }
+    body = Term::Lam { tag: Tag::Static, pat: Box::new(Pattern::Var { nam: Name(format!("%s")) }), bod: Box::new(Term::Match {
+     scrutinee: Box::new(Term::Var { nam: Name(format!("%s")) }), 
+     arms: vec![
+      (pat.clone(), body),
+      (Pattern::Era, Term::Era)
+     ]
+   })}
+ }
   body
 }
 
@@ -186,7 +150,7 @@ fn make_leaf_pattern_matching_case(
   // Add the applications to call the rule body
   term = match_path.iter().zip(&rule.pats).fold(term, |term, (matched, pat)| {
     match (matched, pat) {
-      (Pattern::Var { .. }, Pattern::Var { .. }) => {
+      (Pattern::Var { .. } | Pattern::Era, Pattern::Var { .. } | Pattern::Era) => {
         Term::optional_arg_call(term, next(lambdas_usage, arg_use))
       }
       (Pattern::Ctr { args: vars, .. }, Pattern::Ctr { .. }) => {
@@ -195,7 +159,7 @@ fn make_leaf_pattern_matching_case(
       // This particular rule was not matching on this arg but due to the other rules we had to match on a constructor.
       // So, to call the rule body we have to recreate the constructor.
       // (On scott encoding, if one of the cases is matched we must also match on all the other constructors for this arg)
-      (Pattern::Ctr { nam: ctr_nam, args: vars }, Pattern::Var { .. }) => {
+      (Pattern::Ctr { nam: ctr_nam, args: vars }, Pattern::Var { .. } | Pattern::Era) => {
         let ctr_args = vars.iter().map(|_| arg_use.next().unwrap());
 
         // If the rule lambda is discarding the Ctr, we don't need to re-build it
@@ -209,17 +173,17 @@ fn make_leaf_pattern_matching_case(
         Term::App { tag: Tag::Static, fun: Box::new(term), arg: Box::new(ctr_term) }
       }
       // As the destructuring of the tuple happens later, we just pass the tuple itself.
-      (Pattern::Var { .. }, Pattern::Tup { .. }) => {
+      (Pattern::Var { .. } | Pattern::Era, Pattern::Tup { .. }) => {
         Term::optional_arg_call(term, next(lambdas_usage, arg_use))
       }
-      (Pattern::Var { .. }, Pattern::Sup { .. }) => {
+      (Pattern::Var { .. } | Pattern::Era, Pattern::Sup { .. }) => {
         Term::optional_arg_call(term, next(lambdas_usage, arg_use))
       }
       (Pattern::Num { mat: MatchNum::Zero }, Pattern::Num { mat: MatchNum::Zero }) => term,
       (Pattern::Num { mat: MatchNum::Succ { .. } }, Pattern::Num { mat: MatchNum::Succ { .. } }) => {
         Term::optional_arg_call(term, next(lambdas_usage, arg_use))
       }
-      (Pattern::Var { .. }, Pattern::Num { .. }) => term,
+      (Pattern::Var { .. } | Pattern::Era, Pattern::Num { .. }) => term,
       (Pattern::Ctr { .. }, _) => unreachable!(),
       (Pattern::Var { .. }, _) => unreachable!(),
       (Pattern::Num { .. }, _) => unreachable!(),
@@ -356,12 +320,12 @@ fn make_adt_pattern_matching_case(
       .filter(|&rule_idx| match &def_rules[rule_idx].pats[arg_idx] {
         Pattern::Var { .. } => true,
         Pattern::Lnk { .. } => true,
+        Pattern::Era => true,
         Pattern::Ctr { nam, .. } => nam == ctr,
         Pattern::Num { .. } => todo!(),
         Pattern::Tup { .. } => todo!(),
         Pattern::Sup { .. } => todo!(),
         Pattern::Implicit => todo!(),
-        Pattern::Era => todo!(),
       })
       .collect()
   }
@@ -441,11 +405,11 @@ fn make_non_pattern_matching_case(
 
 impl Term {
   fn named_lam(nam: Name, bod: Term) -> Term {
-    Term::Lam { tag: Tag::Static, nam: Some(nam), bod: Box::new(bod) }
+    Self::tagged_lam(nam, bod, Tag::Static)
   }
 
   fn tagged_lam(nam: Name, bod: Term, tag: Tag) -> Term {
-    Term::Lam { tag, nam: Some(nam), bod: Box::new(bod) }
+    Term::Lam { tag, pat: Box::new(Pattern::Var { nam }), bod: Box::new(bod) }
   }
 
   fn arg_call(term: Term, arg: Name) -> Term {
@@ -466,15 +430,15 @@ impl Term {
   fn arg_vars_are_used(&self) -> Vec<bool> {
     fn go(term: &Term, vec: &mut Vec<bool>) {
       match term {
-        Term::Lam { nam: None, bod, .. } => {
+        Term::Lam { pat: box Pattern::Era, bod, .. } => {
           vec.push(false);
           go(bod, vec);
         }
-        Term::Lam { nam: Some(_), bod, .. } => {
+        Term::Lam { bod, .. } => {
           vec.push(true);
           go(bod, vec);
         }
-        Term::Let { nxt, .. } | Term::Dup { nxt, .. } => {
+        Term::Let { nxt, .. } => {
           go(nxt, vec);
         }
         _ => {}
