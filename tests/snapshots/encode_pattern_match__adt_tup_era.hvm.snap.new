@@ -1,0 +1,20 @@
+---
+source: tests/golden_tests.rs
+assertion_line: 47
+input_file: tests/golden_tests/encode_pattern_match/adt_tup_era.hvm
+---
+(Foo) = λx #Tuple (x Foo$PPair)
+
+(Foo$PPair) = #Tuple.Pair.a λy0 #Tuple.Pair.b λy1 (Foo$R0 y0 *)
+
+(Foo$R0) = λ%s match %s { (Pair (Pair a b) c): a; *: * }
+
+(Foo$R1) = λ%s match %s { *: 2; *: * }
+
+(Main) = (Foo (Pair 1 5))
+
+(Pair) = λa λb #Tuple λPair #Tuple.Pair.b (#Tuple.Pair.a (Pair a) b)
+
+(SCons) = λhead λtail #String λSCons #String λSNil #String.SCons.tail (#String.SCons.head (SCons head) tail)
+
+(SNil) = #String λSCons #String λSNil SNil

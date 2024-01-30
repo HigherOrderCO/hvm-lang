@@ -1,9 +1,0 @@
----
-source: tests/golden_tests.rs
-assertion_line: 51
-input_file: tests/golden_tests/compile_file_o0/addition_const.hvm
----
-@SCons = (b (c ({4 b {2 c a}} (* a))))
-@SNil = (* (a a))
-@main = <+ #1 #2>
-

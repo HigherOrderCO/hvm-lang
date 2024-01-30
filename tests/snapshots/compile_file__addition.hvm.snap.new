@@ -1,0 +1,7 @@
+---
+source: tests/golden_tests.rs
+assertion_line: 47
+input_file: tests/golden_tests/compile_file/addition.hvm
+---
+@main = #10
+

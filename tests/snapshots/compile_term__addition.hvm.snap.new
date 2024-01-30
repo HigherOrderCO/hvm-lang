@@ -1,0 +1,8 @@
+---
+source: tests/golden_tests.rs
+assertion_line: 47
+input_file: tests/golden_tests/compile_term/addition.hvm
+---
+c
+& <+ #1 <+ a b>> ~ #1
+& (#8 c) ~ (a b)
