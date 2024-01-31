@@ -110,7 +110,13 @@ impl Term {
           term.fix_names(id_counter, book)
         }
       }
-      Term::Let { .. } => unreachable!(),
+      Term::Let { pat, val, nxt } => {
+        val.fix_names(id_counter, book);
+        for nam in pat.bound_names_mut() {
+          fix_name(nam, id_counter, nxt);
+        }
+        nxt.fix_names(id_counter, book);
+      }
       Term::Var { .. } | Term::Lnk { .. } | Term::Num { .. } | Term::Str { .. } | Term::Era => {}
     }
   }
@@ -206,15 +212,20 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
         let mat = Term::Match {
           scrutinee: hole(),
           arms: vec![
-            (Pattern::Num { mat: crate::term::MatchNum::Zero }, Term::default()),
+            (Pattern::Num { mat: crate::term::MatchNum::Zero }, Term::Let {
+              pat: Pattern::Era,
+              val: Default::default(),
+              nxt: Default::default(),
+            }),
             (
-              Pattern::Num { mat: crate::term::MatchNum::Succ(Box::new(Pattern::Var { nam: pred })) },
-              Term::default(),
+              Pattern::Num { mat: crate::term::MatchNum::Succ(Box::new(Pattern::Lnk { nam: pred })) },
+              Term::Let { pat: Pattern::Era, val: Default::default(), nxt: Default::default() },
             ),
           ],
         };
         let ((scrutinee, zero, succ), mat) = LoanedMut::loan_with(mat, |mat, l| {
           let Term::Match { scrutinee, arms } = mat else { unreachable!() };
+          println!("{:?}", arms);
           let [(_, Term::Let { nxt: zero, .. }), (_, Term::Let { nxt: succ, .. })] = &mut arms[..] else {
             unreachable!()
           };
@@ -269,8 +280,8 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
             Term::Let {
               pat: Pattern::Sup {
                 tag,
-                fst: Box::new(Pattern::Var { nam: fst_name.clone() }),
-                snd: Box::new(Pattern::Var { nam: snd_name }),
+                fst: Box::new(Pattern::Lnk { nam: fst_name.clone() }),
+                snd: Box::new(Pattern::Lnk { nam: snd_name }),
               },
               val: hole(),
               nxt: hole(),
@@ -282,8 +293,8 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
               (l.loan_mut(val), l.loan_mut(fst), l.loan_mut(snd), l.loan_mut(nxt))
             },
           );
-          let Pattern::Var { nam: _fst } = fst else { unreachable!() };
-          let Pattern::Var { nam: _snd } = snd else { unreachable!() };
+          let Pattern::Lnk { nam: _fst } = fst else { unreachable!() };
+          let Pattern::Lnk { nam: _snd } = snd else { unreachable!() };
           term.place(val);
           *nxt = Term::Lnk { nam: fst_name };
           self.read_pos(port.p1, dup.into());
@@ -615,6 +626,10 @@ pub fn readback_and_resugar(net: &mut Net, labels: &Labels, host: &Host, book: &
     eprintln!("{:?}", reader.errors);
   }
   drop(reader);
+  eprintln!("{}", term.display(&book.def_names));
+  term.delinearize();
+  term.rescope();
+  eprintln!("{}", term.display(&book.def_names));
   term
 }
 

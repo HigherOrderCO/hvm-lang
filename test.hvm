@@ -1,4 +1,0 @@
-data Option = (Some val) | None
-Map f (Some val) = (Some (f val))
-Map f None = None
-main = (Map λx (+ x 1) (Some 3))

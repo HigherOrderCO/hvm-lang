@@ -1,4 +1,5 @@
 pub mod definition_pruning;
+pub mod delinearize;
 pub mod desugar_implicit_match_binds;
 pub mod detach_combinators;
 pub mod detach_supercombinators;
@@ -9,6 +10,7 @@ pub mod eta_reduction;
 pub mod extract_matches;
 pub mod flatten;
 pub mod linearize;
+pub mod rescope_vars;
 pub mod resolve_ctrs_in_pats;
 pub mod resolve_refs;
 pub mod simplify_ref_to_ref;

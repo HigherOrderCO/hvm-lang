@@ -14,6 +14,7 @@ pub struct Unscoper<'t> {
   scope: IndexMap<Name, Vec<Vec<&'t mut Name>>>,
   saved_depths: Vec<IndexMap<Name, usize>>,
   errors: Vec<Error>,
+  pop_count: IndexMap<Name, usize>,
 }
 
 impl Book {
@@ -39,7 +40,12 @@ impl Book {
 
 impl<'t> Unscoper<'t> {
   fn name_for(&self, name: &Name) -> Name {
-    Name(format!("{}_{}", name.0, self.scope.get(name).map(|x| x.len()).unwrap_or(0)))
+    Name(format!(
+      "{}_{}_{}",
+      name.0,
+      self.scope.get(name).map(|x| x.len()).unwrap_or(0),
+      self.pop_count.get(name).unwrap_or(&0)
+    ))
   }
   fn push_scope(&mut self, name: &'t mut Name) {
     self.scope.entry(name.clone()).or_default().push(vec![name]);
@@ -57,6 +63,7 @@ impl<'t> Unscoper<'t> {
     for i in v {
       *i = new_name.clone();
     }
+    *self.pop_count.entry(name.clone()).or_insert(0) += 1;
   }
   fn pop_scope_until_len(&mut self, name: &Name, desired_len: usize) {
     for _ in 0 .. (self.scope.entry(name.clone()).or_default().len() - desired_len) {
@@ -97,8 +104,8 @@ impl<'t> Unscoper<'t> {
         self.unscope_term(arg);
       }
       Term::Let { pat, val, nxt } => {
-        self.push_depths();
         self.unscope_term(val);
+        self.push_depths();
         self.unscope_pat(pat);
         self.unscope_term(nxt);
         self.pop_depths();
