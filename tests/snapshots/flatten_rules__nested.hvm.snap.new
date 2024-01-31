@@ -1,0 +1,20 @@
+---
+source: tests/golden_tests.rs
+assertion_line: 47
+input_file: tests/golden_tests/flatten_rules/nested.hvm
+---
+(CtrA) = λa λb #Foo λCtrA #Foo λCtrB #Foo.CtrA.b (#Foo.CtrA.a (CtrA a) b)
+
+(CtrB) = λa #Foo λCtrA #Foo λCtrB #Foo.CtrB.a (CtrB a)
+
+(CtrB1) = λb #Bar λCtrB1 #Bar λCtrB2 #Bar.CtrB1.b (CtrB1 b)
+
+(CtrB2) = λa λb #Bar λCtrB1 #Bar λCtrB2 #Bar.CtrB2.b (#Bar.CtrB2.a (CtrB2 a) b)
+
+(CtrC) = #Baz λCtrC CtrC
+
+(Rule (CtrA a (CtrB1 b))) = (a b)
+(Rule (CtrA a (CtrB2 (CtrC) b))) = (a b)
+(Rule (CtrA a b)) = (a b)
+(Rule (CtrB b)) = b
+(Rule x) = x

@@ -41,7 +41,9 @@ pub fn term_to_compat_net(term: &Term, labels: &mut Labels) -> hvmc::ast::Net {
   let (root_ref, root_own) = LoanedMut::loan(Box::new(Tree::Era));
 
   encoder.encode_term(term, Place::Hole(root_ref));
+  encoder.erase_all();
   let loaned_redexes: LoanedMut<Vec<(Tree, Tree)>> = core::mem::take(&mut encoder.redexes).into();
+  assert!(encoder.redexes.is_empty());
   encoder.finish();
 
   let redex = loaned::take!(loaned_redexes);
@@ -57,6 +59,7 @@ enum Place<'t, 'e> {
   Var(&'e Name),
 }
 
+#[derive(Debug)]
 struct Encoder<'t, 'e> {
   vars: IndexMap<&'e Name, Place<'t, 'e>>,
   redexes: Vec<LoanedMut<'t, (Tree, Tree)>>,
@@ -163,8 +166,7 @@ impl<'t, 'e> Encoder<'t, 'e> {
     match term {
       Term::Lnk { nam } => Place::Var(nam),
       Term::Lam { tag, pat, bod } => {
-        println!("{:?}", tag);
-        let lab = (self.labels.con.generate(tag).map(|x| x+1).unwrap_or(0) << 1) as u16;
+        let lab = (self.labels.con.generate(tag).map(|x| x + 1).unwrap_or(0) << 1) as u16;
         let (tree, lft, rgt) = create_ctr(lab);
         self.encode_pat(pat, Place::Hole(lft));
         self.encode_term(bod.as_ref(), Place::Hole(rgt));
@@ -172,7 +174,7 @@ impl<'t, 'e> Encoder<'t, 'e> {
       }
       Term::Var { nam } => Place::Var(nam),
       Term::App { tag, fun, arg } => {
-        let lab = (self.labels.con.generate(tag).map(|x| x+1).unwrap_or(0) << 1) as u16;
+        let lab = (self.labels.con.generate(tag).map(|x| x + 1).unwrap_or(0) << 1) as u16;
         let (tree, lft, rgt) = create_ctr(lab);
         self.encode_term(fun.as_ref(), Place::Tree(tree));
         self.encode_term(arg.as_ref(), Place::Hole(lft));
@@ -180,7 +182,7 @@ impl<'t, 'e> Encoder<'t, 'e> {
       }
       Term::Ref { def_id } => Place::Tree(LoanedMut::new(Tree::Ref { nam: def_id.0.clone() })),
       Term::Sup { tag, fst, snd } => {
-        let lab = ((self.labels.dup.generate(tag).map(|x| x+1).unwrap_or(0) << 1) + 3) as u16;
+        let lab = ((self.labels.dup.generate(tag).map(|x| x + 1).unwrap_or(0) << 1) + 3) as u16;
         let (tree, lft, rgt) = create_ctr(lab);
         self.encode_term(fst, Place::Hole(lft));
         self.encode_term(snd, Place::Hole(rgt));
@@ -204,8 +206,15 @@ impl<'t, 'e> Encoder<'t, 'e> {
       Term::Match { scrutinee, arms } => {
         // It must be a zero-succ match.
         // because other matches get desugared
-        debug_assert!(matches!(arms[0].0, Pattern::Num { mat: MatchNum::Zero }));
-        let Pattern::Num { mat: MatchNum::Succ(succ_pat) } = &arms[1].0 else { unreachable!() };
+        println!("{:#?}", arms);
+        debug_assert!(
+          matches!(arms[0].0, Pattern::Num { mat: MatchNum::Zero }) || matches!(arms[0].0, Pattern::Era)
+        );
+        let succ_pat = match &arms[1].0 {
+          Pattern::Num { mat: MatchNum::Succ(pred) } => pred,
+          term @ Pattern::Era => term,
+          _ => unimplemented!(),
+        };
         let zero = &arms[0].1;
         let succ = &arms[1].1;
 
@@ -254,7 +263,7 @@ impl<'t, 'e> Encoder<'t, 'e> {
       Pattern::Lnk { nam } => Place::Var(nam),
       Pattern::Var { nam } => Place::Var(nam),
       Pattern::Sup { tag, fst, snd } => {
-        let lab = ((self.labels.dup.generate(tag).map(|x| x+1).unwrap_or(0) << 1) + 3) as u16;
+        let lab = ((self.labels.dup.generate(tag).map(|x| x + 1).unwrap_or(0) << 1) + 3) as u16;
         let (tree, lft, rgt) = create_ctr(lab);
         self.encode_pat(fst, Place::Hole(lft));
         self.encode_pat(snd, Place::Hole(rgt));
@@ -269,6 +278,11 @@ impl<'t, 'e> Encoder<'t, 'e> {
       }
       Pattern::Era => Place::Tree(LoanedMut::new(Tree::Era)),
       _ => unreachable!(),
+    }
+  }
+  fn erase_all(&mut self) {
+    for p in std::mem::take(&mut self.vars).into_values() {
+      self.erase(p);
     }
   }
   fn finish(mut self) {

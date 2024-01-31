@@ -22,13 +22,7 @@ impl Term {
   pub fn display<'a>(&'a self, def_names: &'a DefNames) -> impl Display + 'a {
     DisplayFn(move |f| match self {
       Term::Lam { tag, pat, bod } => {
-        write!(
-          f,
-          "{}λ{} {}",
-          tag.display_padded(),
-          pat,
-          bod.display(def_names)
-        )
+        write!(f, "{}λ{} {}", tag.display_padded(), pat, bod.display(def_names))
       }
       Term::Var { nam } => write!(f, "{nam}"),
       Term::Chn { tag, nam, bod } => {

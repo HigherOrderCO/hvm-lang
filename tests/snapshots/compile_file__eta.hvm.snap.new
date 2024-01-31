@@ -1,0 +1,9 @@
+---
+source: tests/golden_tests.rs
+assertion_line: 47
+input_file: tests/golden_tests/compile_file/eta.hvm
+---
+@Id = (a a)
+@main = (a b)
+& @Id ~ (a b)
+

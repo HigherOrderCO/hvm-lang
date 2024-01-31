@@ -1,16 +1,23 @@
-use hvmc::{ast::{parse_net, show_net, Host}, run::Net};
+use hvmc::{
+  ast::{parse_net, show_net, Host},
+  run::Net,
+};
 use hvml::{
-  compile_book, encode_pattern_matching,
-  run_book,
+  compile_book, encode_pattern_matching, run_book,
   term::{
-    encoder::{book_to_tree, term_to_compat_net, Labels}, parser::{parse_definition_book, parse_term}, readback::readback_and_resugar, Book, Term
+    encoder::{book_to_tree, term_to_compat_net, Labels},
+    parser::{parse_definition_book, parse_term},
+    readback::readback_and_resugar,
+    Book, Term,
   },
   OptimizationLevel,
 };
 use insta::assert_snapshot;
 use itertools::Itertools;
 use std::{
-  collections::BTreeMap, fs, path::{Path, PathBuf}
+  collections::BTreeMap,
+  fs,
+  path::{Path, PathBuf},
 };
 use stdext::function_name;
 use walkdir::WalkDir;
@@ -75,7 +82,7 @@ fn run_golden_test_dir(test_name: &str, run: &dyn Fn(&str) -> Result<String, Str
 fn compile_term() {
   run_golden_test_dir(function_name!(), &|code| {
     let mut term = do_parse_term(code)?;
-    
+
     let net = term_to_compat_net(&term, &mut Labels::default());
 
     let result = show_net(&net);
@@ -123,14 +130,15 @@ fn readback_lnet() {
     let net = do_parse_net(code)?;
     let book = Book::default();
     let term = {
-      let mut host = Host::new(&[(String::from("main"), net),].into_iter().collect());
+      let mut host = Host::new(&[(String::from("main"), net)].into_iter().collect());
 
       let heap = Net::init_heap(1 << 16);
       let mut rt_net = Net::new(&heap);
       rt_net.boot(host.defs.get_mut("main").as_mut().unwrap());
       readback_and_resugar(&mut rt_net, &Labels::default(), &host, &book)
     };
-    let x = Ok(term.display(&book.def_names).to_string()); x
+    let x = Ok(term.display(&book.def_names).to_string());
+    x
   })
 }
 

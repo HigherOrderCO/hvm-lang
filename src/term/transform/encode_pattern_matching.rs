@@ -62,14 +62,35 @@ fn make_rule_name(def_name: &Name, rule_idx: usize) -> Name {
 fn make_rule_body(mut body: Term, pats: &[Pattern]) -> Term {
   // Add the lambdas for the pattern variables
   for pat in pats.iter().rev() {
-    body = Term::Lam { tag: Tag::Static, pat: Box::new(Pattern::Var { nam: Name(format!("%s")) }), bod: Box::new(Term::Match {
-     scrutinee: Box::new(Term::Var { nam: Name(format!("%s")) }), 
-     arms: vec![
-      (pat.clone(), body),
-      (Pattern::Era, Term::Era)
-     ]
-   })}
- }
+    match pat {
+      Pattern::Ctr { args: vars, .. } => {
+        for var in vars.iter().rev() {
+          let Pattern::Var { nam } = var else { unreachable!() };
+          body = Term::Lam {
+            tag: Tag::Static,
+            pat: Box::new(Pattern::Var { nam: nam.clone() }),
+            bod: Box::new(body),
+          }
+        }
+      }
+      Pattern::Num { mat: MatchNum::Zero } => (),
+      Pattern::Num { mat: MatchNum::Succ(p) } => {
+        let tmpnam = Name::new("%succ%0");
+
+        body = Term::Let {
+          pat: Pattern::Var { nam: tmpnam.clone() },
+          val: Box::new(p.as_ref().into()),
+          nxt: Box::new(Term::Lam {
+            tag: Tag::Static,
+            pat: Box::new(Pattern::Var { nam: tmpnam.clone() }),
+            bod: Box::new(body),
+          }),
+        }
+      }
+      // Otherwise, we don't need to desugar
+      pat => body = Term::Lam { tag: Tag::Static, pat: Box::new(pat.clone()), bod: Box::new(body) },
+    }
+  }
   body
 }
 

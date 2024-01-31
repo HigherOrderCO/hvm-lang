@@ -2,15 +2,14 @@
 source: tests/golden_tests.rs
 input_file: tests/golden_tests/compile_file/adt_option_and.hvm
 ---
-@None = {2 * {2 a a}}
-@Option.and$match$1$PSome = {4 a (b {2 {4 [b a] c} {2 * c}})}
-@Option.and$match$1$R1 = (* @None)
-@Option.and$match$2 = ({2 @Option.and$match$2$PSome {2 @Option.and$match$2$R1 a}} a)
-@Option.and$match$2$PSome = {4 a ({2 @Option.and$match$1$PSome {2 @Option.and$match$1$R1 (a b)}} b)}
-@Option.and$match$2$R1 = (* @None)
+@Option.and = ({2 @Option.and$match$2$PSome {2 @Option.and$match$2$R1 (a (* (* (* (* b)))))}} (a b))
+@Option.and$match$1$PSome = {4 ([a b] c) (a (b (* c)))}
+@Option.and$match$1$R1 = (* (* (* (a a))))
+@Option.and$match$2$PSome = {4 {2 @Option.and$match$1$PSome {2 @Option.and$match$1$R1 (a (b (c (d e))))}} (a (b (c (d e))))}
+@Option.and$match$2$R1 = (* (* (* (* (a a)))))
 @Some = (a {2 {4 a b} {2 * b}})
 @main = a
-& @Option.and$match$2 ~ (b (c a))
-& @Some ~ (#3 c)
+& @Option.and ~ (b (c a))
 & @Some ~ (#1 b)
+& @Some ~ (#3 c)
 

@@ -65,7 +65,6 @@ pub fn encode_pattern_matching(book: &mut Book) -> Result<(), String> {
   book.desugar_implicit_match_binds();
   book.resolve_ctrs_in_pats();
   book.check_unbound_pats()?;
-  //  book.desugar_let_destructors();
   book.extract_matches()?;
   book.flatten_rules();
   let def_types = book.infer_def_types()?;

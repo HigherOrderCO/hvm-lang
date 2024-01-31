@@ -1,0 +1,12 @@
+---
+source: tests/golden_tests.rs
+assertion_line: 47
+input_file: tests/golden_tests/flatten_rules/nested_0ary.hvm
+---
+(Cons) = λhead λtail #List λCons #List λNil #List.Cons.tail (#List.Cons.head (Cons head) tail)
+
+(Nil) = #List λCons #List λNil Nil
+
+(Unpack cmp (Nil)) = Nil
+(Unpack cmp (Cons h (Nil))) = h
+(Unpack cmp xs) = (cmp xs)

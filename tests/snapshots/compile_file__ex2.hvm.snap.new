@@ -1,0 +1,19 @@
+---
+source: tests/golden_tests.rs
+assertion_line: 47
+input_file: tests/golden_tests/compile_file/ex2.hvm
+---
+@E = (* (* (a a)))
+@I = (a (* ((a b) (* b))))
+@c2 = ({5 (b c) (a b)} (a c))
+@decI = ((@lowO (@lowI (@E a))) a)
+@decO = ((@decO (@decI (@E a))) (* ((a b) (* b))))
+@lowI = (a (((* ((a b) (* b))) c) (* (* c))))
+@lowO = (a ((((a b) (* (* b))) c) (* (* c))))
+@main = a
+& @run ~ (b a)
+& @c2 ~ (@I (@E b))
+@run = ((@runO (@runI (@E a))) a)
+@runI = ((@lowO (@lowI (@E (@runO (@runI (@E a)))))) a)
+@runO = ((@decO (@decI (@E (@lowO (@lowI (@E (@runO (@runI (@E a))))))))) a)
+

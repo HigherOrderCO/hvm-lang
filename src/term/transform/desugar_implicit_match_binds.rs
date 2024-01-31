@@ -74,13 +74,9 @@ impl Term {
       Term::Lam { bod, .. } | Term::Chn { bod, .. } => {
         bod.desugar_implicit_match_binds(ctrs, adts);
       }
-      Term::Ref { .. }
-      | Term::Num { .. }
-      | Term::Era
-      | Term::Lnk { .. }
-      | Term::Var { .. } => (),
+      Term::Ref { .. } | Term::Num { .. } | Term::Era | Term::Lnk { .. } | Term::Var { .. } => (),
 
-      Term::Str { .. }  => {
+      Term::Str { .. } => {
         unreachable!("Expected string expressions to have been desugared already")
       }
     }

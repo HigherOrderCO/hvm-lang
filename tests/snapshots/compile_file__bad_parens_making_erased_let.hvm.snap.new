@@ -1,0 +1,10 @@
+---
+source: tests/golden_tests.rs
+assertion_line: 47
+input_file: tests/golden_tests/compile_file/bad_parens_making_erased_let.hvm
+---
+@X = (a a)
+@main = a
+& @X ~ (@X (b a))
+& @X ~ (* (* b))
+

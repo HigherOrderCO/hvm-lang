@@ -1,6 +1,5 @@
 //! Pass that turns all variables into scopeless variables.
 
-
 use indexmap::IndexMap;
 
 use crate::term::{self, Book, Name, Pattern, Term};
@@ -124,7 +123,7 @@ impl<'t> Unscoper<'t> {
 
       term @ Term::Chn { .. } => {
         replace_with::replace_with_or_default(term, |term| {
-          let Term::Chn { tag, nam, bod } = term else { unreachable!()};
+          let Term::Chn { tag, nam, bod } = term else { unreachable!() };
           Term::Lam { tag, pat: Box::new(Pattern::Lnk { nam }), bod }
         });
         self.unscope_term(term);
@@ -141,10 +140,8 @@ impl<'t> Unscoper<'t> {
         self.push_scope(nam)
       }
       Pattern::Ctr { nam, args } => {
-        println!("{:?}", nam);
-        println!("{:?}", args);
-        todo!();
-      },
+        unreachable!()
+      }
       Pattern::Num { mat } => match mat {
         term::MatchNum::Zero => (),
         term::MatchNum::Succ(p) => self.unscope_pat(p),

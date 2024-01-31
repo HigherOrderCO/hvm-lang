@@ -1,0 +1,9 @@
+---
+source: tests/golden_tests.rs
+assertion_line: 47
+input_file: tests/golden_tests/compile_file/fst_fst.hvm
+---
+@FstFst = ([a *] ([b *] [a b]))
+@main = a
+& @FstFst ~ ([#3 #9] ([#4 #12] a))
+

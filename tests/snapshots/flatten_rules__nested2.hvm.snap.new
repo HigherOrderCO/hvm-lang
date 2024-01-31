@@ -1,0 +1,11 @@
+---
+source: tests/golden_tests.rs
+assertion_line: 47
+input_file: tests/golden_tests/flatten_rules/nested2.hvm
+---
+(Cons) = λh λt #List λCons #List λNil #List.Cons.t (#List.Cons.h (Cons h) t)
+
+(Foo a (Cons b (Cons c d))) = (a b c d)
+(Foo a b) = (a b)
+
+(Nil) = #List λCons #List λNil Nil

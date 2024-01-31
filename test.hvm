@@ -1,4 +1,4 @@
 data Option = (Some val) | None
-Map f (Some val) = (Some val)
+Map f (Some val) = (Some (f val))
 Map f None = None
-main = (Some 3)
+main = (Map λx (+ x 1) (Some 3))

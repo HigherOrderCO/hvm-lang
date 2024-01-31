@@ -1,0 +1,6 @@
+---
+source: tests/golden_tests.rs
+assertion_line: 47
+input_file: tests/golden_tests/run_file/adt_match.hvm
+---
+1

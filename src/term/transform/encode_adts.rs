@@ -28,12 +28,16 @@ fn make_lam(adt_name: &Name, ctr_args: Vec<Name>, ctrs: Vec<Name>, ctr_name: &Na
     arg: Box::new(Term::Var { nam }),
   });
 
-  let fold_lam =
-    |acc, arg| Term::Lam { tag: Tag::Named(adt_name.clone()), pat: Box::new(Pattern::Var { nam: arg }), bod: Box::new(acc) };
+  let fold_lam = |acc, arg| Term::Lam {
+    tag: Tag::Named(adt_name.clone()),
+    pat: Box::new(Pattern::Var { nam: arg }),
+    bod: Box::new(acc),
+  };
 
   let lam = ctrs.into_iter().rev().fold(app, fold_lam);
 
-  let fold_lam = |acc, arg| Term::Lam { tag: Tag::Static, pat: Box::new(Pattern::Var { nam: arg }), bod: Box::new(acc) };
+  let fold_lam =
+    |acc, arg| Term::Lam { tag: Tag::Static, pat: Box::new(Pattern::Var { nam: arg }), bod: Box::new(acc) };
 
   ctr_args.into_iter().rev().fold(lam, fold_lam)
 }

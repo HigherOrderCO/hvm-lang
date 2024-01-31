@@ -21,9 +21,7 @@ impl Term {
         bod.eta_reduction();
         let pat_term: Term = pat.as_ref().into();
         match bod.as_mut() {
-          Term::App { tag: arg_tag, fun, arg }
-            if arg.as_ref() == &pat_term && lam_tag == arg_tag =>
-          {
+          Term::App { tag: arg_tag, fun, arg } if arg.as_ref() == &pat_term && lam_tag == arg_tag => {
             *self = std::mem::take(fun.as_mut());
           }
           _ => (),

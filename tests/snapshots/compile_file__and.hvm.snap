@@ -2,11 +2,11 @@
 source: tests/golden_tests.rs
 input_file: tests/golden_tests/compile_file/and.hvm
 ---
-@and$P = (a ({2 @and$R1 {2 @and$P$Pfalse (a b)}} b))
+@and = (a ({2 @and$P$Ptrue {2 @and$P$Pfalse (a b)}} b))
 @and$P$Pfalse = (* @false)
-@and$R1 = (a a)
+@and$P$Ptrue = (a a)
 @false = {2 * {2 a a}}
 @main = a
-& @and$P ~ (@true (@false a))
+& @and ~ (@true (@false a))
 @true = {2 a {2 * a}}
 

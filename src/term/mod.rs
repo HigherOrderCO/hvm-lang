@@ -323,7 +323,7 @@ impl Term {
         if !pat.bound_names().contains(from) {
           bod.subst(from, to)
         }
-      },
+      }
       Term::Var { nam } if nam == from => *self = to.clone(),
       Term::Var { .. } => (),
       // Only substitute scoped variables.

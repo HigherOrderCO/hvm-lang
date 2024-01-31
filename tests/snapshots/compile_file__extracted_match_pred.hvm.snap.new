@@ -1,0 +1,11 @@
+---
+source: tests/golden_tests.rs
+assertion_line: 47
+input_file: tests/golden_tests/compile_file/extracted_match_pred.hvm
+---
+@main = a
+& @val ~ (#1 a)
+@val = (?<(@valZ (* @val$match$1$P+n-1)) a> a)
+@val$match$1$P+n-1 = (* *)
+@valZ = #0
+

@@ -3,7 +3,6 @@ use replace_with::replace_with_or_default;
 
 use crate::term::{Book, MatchNum, Name, Pattern, Tag, Term};
 
-
 /// Erases variables that weren't used, dups the ones that were used more than once.
 /// Precondition: All variables are bound and have unique names within each definition.
 impl Book {

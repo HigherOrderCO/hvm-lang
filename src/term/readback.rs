@@ -276,7 +276,9 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
               nxt: hole(),
             },
             |term: &mut Term, l| {
-              let Term::Let { pat: Pattern::Sup { tag: _, fst, snd }, val, nxt } = term else { unreachable!() };
+              let Term::Let { pat: Pattern::Sup { tag: _, fst, snd }, val, nxt } = term else {
+                unreachable!()
+              };
               (l.loan_mut(val), l.loan_mut(fst), l.loan_mut(snd), l.loan_mut(nxt))
             },
           );
@@ -416,7 +418,9 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
             Term::Lam { tag: Tag::Named(tag), pat: box Pattern::Era, box bod } if &*tag == adt_name => {
               *cur = bod.clone();
             }
-            Term::Lam { tag: Tag::Named(tag), pat: box Pattern::Lnk { nam }, box bod } if &*tag == adt_name => {
+            Term::Lam { tag: Tag::Named(tag), pat: box Pattern::Lnk { nam }, box bod }
+              if &*tag == adt_name =>
+            {
               if current_arm.is_some() {
                 return self.error(ReadbackError::InvalidAdt);
               }
@@ -534,8 +538,18 @@ impl<'book, 'area, 'term> Reader<'book, 'area, 'term> {
 pub fn readback(net: &mut Net, labels: &Labels, host: &Host, book: &Book) -> Box<Term> {
   let mut term = Box::new(Term::Era);
   let root = net.root.clone();
-  Reader { net, vars: IndexMap::new(), labels, name_idx: 0, pats: vec![], host, book, errors: vec![], erased: Vec::new() }
-    .read_neg(root, &mut term);
+  Reader {
+    net,
+    vars: IndexMap::new(),
+    labels,
+    name_idx: 0,
+    pats: vec![],
+    host,
+    book,
+    errors: vec![],
+    erased: Vec::new(),
+  }
+  .read_neg(root, &mut term);
   term
 }
 
@@ -543,13 +557,20 @@ pub fn readback_and_resugar(net: &mut Net, labels: &Labels, host: &Host, book: &
   let mut term = Box::new(Term::Era);
   let root = net.root.clone();
   let (vars, erased) = {
-    let mut reader =
-      Reader { net, vars: IndexMap::new(), labels, name_idx: 0, pats: vec![], host, book, errors: vec![], erased: Vec::new() };
+    let mut reader = Reader {
+      net,
+      vars: IndexMap::new(),
+      labels,
+      name_idx: 0,
+      pats: vec![],
+      host,
+      book,
+      errors: vec![],
+      erased: Vec::new(),
+    };
     reader.read_neg(root, &mut term);
-    (core::mem::take(&mut reader.vars),
-    core::mem::take(&mut reader.erased))
+    (core::mem::take(&mut reader.vars), core::mem::take(&mut reader.erased))
   };
-
 
   // Properly drop vars
   let vars: Vec<_> = vars
@@ -561,24 +582,32 @@ pub fn readback_and_resugar(net: &mut Net, labels: &Labels, host: &Host, book: &
     .collect();
   let vars: LoanedMut<Vec<Term>> = vars.into();
 
-  let erased: Vec<_> = erased.into_iter().map(|i| match i {
-    TermHole::Variable(t, p) => {
-      *p = Pattern::Era;
-      t
-    },
-    TermHole::Term(t) => {
-      t
-    },
-  }).collect();
+  let erased: Vec<_> = erased
+    .into_iter()
+    .map(|i| match i {
+      TermHole::Variable(t, p) => {
+        *p = Pattern::Era;
+        t
+      }
+      TermHole::Term(t) => t,
+    })
+    .collect();
   let erased: LoanedMut<Vec<Term>> = erased.into();
 
   loaned::drop!(erased);
   loaned::drop!(vars);
 
-
-  let mut reader =
-    Reader { net, vars: IndexMap::new(), labels, name_idx: 0, pats: vec![], host, book, errors: vec![], erased: Vec::new() };
-
+  let mut reader = Reader {
+    net,
+    vars: IndexMap::new(),
+    labels,
+    name_idx: 0,
+    pats: vec![],
+    host,
+    book,
+    errors: vec![],
+    erased: Vec::new(),
+  };
 
   assert!(reader.vars.is_empty());
   reader.resugar_adts(&mut term);

@@ -42,11 +42,11 @@ pub fn check_uses<'a>(
     Term::Lam { pat, bod, .. } => {
       for nam in pat.bound_names() {
         push_scope(nam, scope);
-      };
+      }
       check_uses(bod, scope, globals)?;
       for nam in pat.bound_names() {
         pop_scope(nam, scope);
-      };
+      }
     }
     Term::Var { nam } => {
       if !scope.contains_key(nam) {
