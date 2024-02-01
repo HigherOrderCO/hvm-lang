@@ -427,6 +427,44 @@ impl Term {
       (Pattern::Num { mat: MatchNum::Succ(Box::new(Pattern::Var { nam: succ_label.unwrap() })) }, succ_term);
     Term::Match { scrutinee: Box::new(scrutinee), arms: vec![zero, succ] }
   }
+
+  pub fn recurse_mut<'a>(&'a mut self, mut term: impl FnMut(&'a mut Self), mut pattern: impl FnMut(&'a mut Pattern)) {
+    match self {
+        Term::Chn { tag, nam, bod } => {
+            term(bod);
+        },
+        Term::Lam { tag, pat, bod } => {
+            pattern(pat);
+            term(bod);
+        },
+        Term::Let { pat, val, nxt } => {
+          pattern(pat);
+          term(val);
+          term(nxt);
+        },
+        
+        Term::Tup { fst, snd }
+        | Term::Opx { fst, snd, .. }
+        | Term::Sup { fst, snd, .. }
+        | Term::App { fun: fst, arg: snd, .. } => {
+            term(fst);
+            term(snd);
+        },
+        Term::Match { scrutinee, arms } => {
+          term(scrutinee);
+          for (pat, bod) in arms {
+            pattern(pat);
+            term(bod);
+          }
+        },
+        Term::Num { .. }
+        | Term::Lnk { .. }
+        | Term::Var { .. }
+        | Term::Str { .. }
+        | Term::Ref { .. }
+        | Term::Era => (),
+    }
+  }
 }
 
 impl Pattern {
@@ -503,6 +541,28 @@ impl Pattern {
       Pattern::Ctr { args, .. } => args.iter().all(|x| x.is_flat()),
       Pattern::Num { mat: MatchNum::Zero } => true,
       Pattern::Num { mat: MatchNum::Succ(p) } => p.is_var_like(),
+    }
+  }
+  pub fn recurse_mut(&mut self, mut pattern: impl FnMut(&mut Pattern)) {
+    match self {
+        Pattern::Ctr { nam, args } => {
+          for i in args {
+            pattern(i);
+          }
+        },
+        Pattern::Num { mat: MatchNum::Zero } => (),
+        Pattern::Num { mat: MatchNum::Succ(p) } => {
+          pattern(p)
+        },
+        Pattern::Tup { fst, snd }
+        | Pattern::Sup { fst, snd, .. } => {
+          pattern(fst);
+          pattern(snd);
+        },
+        Pattern::Lnk { .. }
+        | Pattern::Var { .. }
+        | Pattern::Implicit
+        | Pattern::Era => todo!(),
     }
   }
 }

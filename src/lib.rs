@@ -42,16 +42,17 @@ pub fn desugar_book(book: &mut Book, opt_level: OptimizationLevel) -> Result<Def
   book.generate_scott_adts();
   book.resolve_refs();
   encode_pattern_matching(book)?;
-  println!("POST DESUGAR:\n{}", book);
+  //println!("POST DESUGAR:\n{}", book);
   book.unscope_vars();
 
-  println!("POST UNSCOPE:\n{}", book);
+  //println!("POST UNSCOPE:\n{}", book);
+  book.detach_supercombinators();
+  println!("POST DETACH:\n{}", book);
   book.linearize_vars();
-  println!("POST LINEARIZE\n{}", book);
+  //println!("POST LINEARIZE\n{}", book);
   if opt_level >= OptimizationLevel::Heavy {
     book.eta_reduction();
   }
-  book.detach_supercombinators();
   if opt_level >= OptimizationLevel::Heavy {
     book.simplify_ref_to_ref()?;
   }
