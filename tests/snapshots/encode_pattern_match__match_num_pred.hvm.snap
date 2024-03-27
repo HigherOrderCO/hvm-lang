@@ -3,23 +3,23 @@ source: tests/golden_tests.rs
 input_file: tests/golden_tests/encode_pattern_match/match_num_pred.hvm
 ---
 TaggedScott:
-(pred) = λa match a { 0: 0; 1+: λc c }
+(pred) = λa switch a { 0: 0; _: λb b }
 
-(pred2) = λa match a { 0: 0; 1+: λc match c { 0: 0; 1+: λe e } }
+(pred2) = λa switch a { 0: 0; _: λb switch b { 0: 0; _: λc c } }
 
-(pred3) = λa match a { 0: 0; 1+: λc match c { 0: 0; 1+: λe match e { 0: 0; 1+: λg g } } }
+(pred3) = λa switch a { 0: 0; _: λb switch b { 0: 0; _: λc switch c { 0: 0; _: λd (- (+ d 3) 3) } } }
 
-(pred4) = λa match a { 0: 0; 1+: λc match c { 0: 0; 1+: λe match e { 0: 0; 1+: λg match g { 0: 0; 1+: λi (- (+ i 4) 4) } } } }
+(zero) = λa switch a { 0: 1; _: λb switch b { 0: 0; _: λ* 0 } }
 
 (main) = *
 
 Scott:
-(pred) = λa match a { 0: 0; 1+: λc c }
+(pred) = λa switch a { 0: 0; _: λb b }
 
-(pred2) = λa match a { 0: 0; 1+: λc match c { 0: 0; 1+: λe e } }
+(pred2) = λa switch a { 0: 0; _: λb switch b { 0: 0; _: λc c } }
 
-(pred3) = λa match a { 0: 0; 1+: λc match c { 0: 0; 1+: λe match e { 0: 0; 1+: λg g } } }
+(pred3) = λa switch a { 0: 0; _: λb switch b { 0: 0; _: λc switch c { 0: 0; _: λd (- (+ d 3) 3) } } }
 
-(pred4) = λa match a { 0: 0; 1+: λc match c { 0: 0; 1+: λe match e { 0: 0; 1+: λg match g { 0: 0; 1+: λi (- (+ i 4) 4) } } } }
+(zero) = λa switch a { 0: 1; _: λb switch b { 0: 0; _: λ* 0 } }
 
 (main) = *

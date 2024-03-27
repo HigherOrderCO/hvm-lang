@@ -4,5 +4,4 @@ input_file: tests/golden_tests/compile_file_o_all/non_exhaustive_tree.hvm
 ---
 Errors:
 In definition 'Warp':
-  Non-exhaustive pattern matching. Hint:
-    Case 'Both' not covered.
+  Non-exhaustive pattern matching rule. Constructor 'Both' of type 'Tree' not covered

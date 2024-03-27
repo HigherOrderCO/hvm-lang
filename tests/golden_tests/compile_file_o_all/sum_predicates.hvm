@@ -1,11 +1,11 @@
-sum_pred = @a @b match a {
-  0: match b {
+sum_pred = @a @b switch a {
+  0: switch b {
     0: 0
-    1+: b-1
+    _: b-1
   };
-  1+: match b {
+  _: switch b {
     0: a-1
-    1+: (+ a-1 b-1)
+    _: (+ a-1 b-1)
   }
 }
 

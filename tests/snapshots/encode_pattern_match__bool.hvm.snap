@@ -5,7 +5,7 @@ input_file: tests/golden_tests/encode_pattern_match/bool.hvm
 TaggedScott:
 (not) = λa #bool (a false true)
 
-(and) = λa λb (#bool (a λc #bool (c true false) λg #bool (g false false)) b)
+(and) = λa λb (#bool (a λc #bool (c true false) λd #bool (d false false)) b)
 
 (and2) = λa λb (#bool (a λc c λ* false) b)
 
@@ -20,7 +20,7 @@ TaggedScott:
 Scott:
 (not) = λa (a false true)
 
-(and) = λa λb (a λc (c true false) λg (g false false) b)
+(and) = λa λb (a λc (c true false) λd (d false false) b)
 
 (and2) = λa λb (a λc c λ* false b)
 

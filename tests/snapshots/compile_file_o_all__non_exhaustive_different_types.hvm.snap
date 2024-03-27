@@ -4,5 +4,4 @@ input_file: tests/golden_tests/compile_file_o_all/non_exhaustive_different_types
 ---
 Errors:
 In definition 'foo':
-  Non-exhaustive pattern matching. Hint:
-    Case 't3' not covered.
+  Non-exhaustive pattern matching rule. Constructor 't3' of type 'b3' not covered

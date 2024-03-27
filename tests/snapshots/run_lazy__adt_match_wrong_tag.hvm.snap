@@ -5,6 +5,5 @@ input_file: tests/golden_tests/run_lazy/adt_match_wrong_tag.hvm
 Warnings:
 During readback:
   Unexpected tag found during Adt readback, expected '#Option', but found '#wrong_tag'.
-  Invalid Adt Match.
 
-λa match a { (Some Some.val): #Option (#wrong_tag λb b Some.val); (None): * }
+λa match a { Some: #Option (#wrong_tag λb b a.val); None: * }

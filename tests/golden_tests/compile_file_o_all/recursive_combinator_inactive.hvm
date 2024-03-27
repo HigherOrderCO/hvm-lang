@@ -1,4 +1,4 @@
 // `Foo` inside the term `{Foo Foo}` is not in a active position, tests that it is not unnecessarily extracted
-Foo = @a match a { 0: {Foo Foo}; 1+p: @* p }
+Foo = @a switch a { 0: {Foo Foo}; _: @* a-1 }
 
 main = (Foo 0)

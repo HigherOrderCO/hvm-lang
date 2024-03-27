@@ -1,7 +1,7 @@
 Take_ n list =
-  match (== n 0) {
+  switch (== n 0) {
   | 0: (Take n list)
-  | 1+: []
+  | _: []
   }
 Take n (List.nil) = []
 Take n (List.cons x xs) = (List.cons x (Take_ (- n 1) xs))

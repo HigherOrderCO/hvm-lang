@@ -1,4 +1,4 @@
-main = @a @b let c = (+ a a); match a {
+main = @a @b let c = (+ a a); switch a {
   0: b;
-  1+: (+ a-1 b);
+  _: (+ a-1 b);
 }

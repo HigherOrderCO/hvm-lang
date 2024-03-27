@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
   diagnostics::{Diagnostics, ToStringVerbose},
-  term::{Book, Ctx, Name, Pattern, Term},
+  term::{Book, Ctx, Name, Pattern},
 };
 
 pub struct CtrArityMismatchErr {
@@ -26,8 +26,6 @@ impl Ctx<'_> {
           let res = pat.check_ctrs_arities(&arities);
           self.info.take_rule_err(res, def_name.clone());
         }
-        let res = rule.body.check_ctrs_arities(&arities);
-        self.info.take_rule_err(res, def_name.clone());
       }
     }
 
@@ -67,20 +65,6 @@ impl Pattern {
       }
     }
     Ok(())
-  }
-}
-
-impl Term {
-  pub fn check_ctrs_arities(&self, arities: &HashMap<Name, usize>) -> Result<(), CtrArityMismatchErr> {
-    Term::recursive_call(move || {
-      for pat in self.patterns() {
-        pat.check_ctrs_arities(arities)?;
-      }
-      for child in self.children() {
-        child.check_ctrs_arities(arities)?;
-      }
-      Ok(())
-    })
   }
 }
 

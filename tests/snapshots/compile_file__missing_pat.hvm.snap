@@ -3,5 +3,5 @@ source: tests/golden_tests.rs
 input_file: tests/golden_tests/compile_file/missing_pat.hvm
 ---
 Errors:
-At tests/golden_tests/compile_file/missing_pat.hvm:2:3: found ':' expected '(', '#', '$', <Name>, '[', '{', 'λ', 'let', 'use', 'match', '*', '|', <Num>+, <Num>, <Char>, or <String>
+At tests/golden_tests/compile_file/missing_pat.hvm:2:3: found ':' expected <Match pattern>
 [0m  2 |   [4m[31m:[0m *[0m

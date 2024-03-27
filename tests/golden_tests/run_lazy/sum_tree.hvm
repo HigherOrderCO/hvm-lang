@@ -2,9 +2,9 @@ data Tree = (Leaf x) | (Node x0 x1)
 
 add = λa λb (+ a b)
 
-gen = λn match n {
+gen = λn switch n {
   0: (Leaf 1)
-  1+: (Node (gen n-1) (gen n-1))
+  _: (Node (gen n-1) (gen n-1))
 }
 
 sum = λt

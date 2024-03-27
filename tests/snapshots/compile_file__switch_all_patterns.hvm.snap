@@ -1,0 +1,17 @@
+---
+source: tests/golden_tests.rs
+input_file: tests/golden_tests/compile_file/switch_all_patterns.hvm
+---
+Errors:
+In definition 'succ':
+  Malformed 'switch' expression. Expected case '0', found '_'. Switch expressions must go from 0 to the desired value without skipping any cases and ending with the default case.
+In definition 'succ_zero':
+  Malformed 'switch' expression. Expected case '0', found '_'. Switch expressions must go from 0 to the desired value without skipping any cases and ending with the default case.
+In definition 'succ_zero_succ':
+  Malformed 'switch' expression. Expected case '0', found '_'. Switch expressions must go from 0 to the desired value without skipping any cases and ending with the default case.
+In definition 'zero_succ_succ':
+  Extra arms in 'switch' expression. No rules should come after the default.
+In definition 'zero_succ_zero':
+  Extra arms in 'switch' expression. No rules should come after the default.
+In definition 'zero_zero_succ':
+  Malformed 'switch' expression. Expected case '1', found '0'. Switch expressions must go from 0 to the desired value without skipping any cases and ending with the default case.

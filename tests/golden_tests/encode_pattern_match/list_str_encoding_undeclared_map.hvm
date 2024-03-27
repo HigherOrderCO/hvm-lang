@@ -4,7 +4,7 @@ main = @a @b
     String.nil : 2
   };
   let b = match b {
-    (List.cons h t): 1
-    (List.nil) : 2
+    List.cons: 1
+    List.nil : 2
   };
   (a, b)

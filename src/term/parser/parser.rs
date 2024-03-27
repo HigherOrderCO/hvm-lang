@@ -1,6 +1,6 @@
 use crate::term::{
   parser::lexer::{LexingError, Token},
-  Adt, Book, Definition, Name, NumCtr, Op, Pattern, Rule, Tag, Term,
+  Adt, Book, Definition, Name, NumCtr, Op, Pattern, Rule, Tag, Term, LNIL, SNIL,
 };
 use chumsky::{
   error::{Error, RichReason},
@@ -198,24 +198,27 @@ where
   I: ValueInput<'a, Token = Token, Span = SimpleSpan>,
 {
   let var = name().map(|name| Term::Var { nam: name }).boxed();
-  let global_var = just(Token::Dollar).ignore_then(name()).map(|name| Term::Lnk { nam: name }).boxed();
+  let unscoped_var = just(Token::Dollar).ignore_then(name()).map(|name| Term::Lnk { nam: name }).boxed();
 
-  let number = select!(Token::Num(num) => Term::Num{val: num}).or(
+  let number = select!(Token::Num(num) => num).or(
     select!(Token::Error(LexingError::InvalidNumberLiteral) => ()).validate(|_, span, emit| {
       emit.emit(Rich::custom(span, "found invalid number literal expected number"));
-      Term::Num { val: 0 }
+      0
     }),
   );
 
-  let nat = just(Token::Hash).ignore_then(select!(Token::Num(num) => Term::Nat { val: num }).or(
-    select!(Token::Error(LexingError::InvalidNumberLiteral) => ()).validate(|_, span, emit| {
-      emit.emit(Rich::custom(span, "found invalid nat literal expected number"));
-      Term::Nat { val: 0 }
-    }),
-  ));
+  let nat: chumsky::Boxed<I, Term, extra::Err<Rich<_>>> = just(Token::Hash)
+    .ignore_then(select!(Token::Num(num) => Term::Nat { val: num }).or(
+      select!(Token::Error(LexingError::InvalidNumberLiteral) => ()).validate(|_, span, emit| {
+        emit.emit(Rich::custom(span, "found invalid nat literal expected number"));
+        Term::Nat { val: 0 }
+      }),
+    ))
+    .boxed();
+
+  let num_term = number.map(|val| Term::Num { val });
 
   let term_sep = just(Token::Semicolon).or_not();
-  let list_sep = just(Token::Comma).or_not();
 
   recursive(|term| {
     // *
@@ -230,7 +233,7 @@ where
       .boxed();
 
     // #tag? λ$x body
-    let global_lam = tag(Tag::Static)
+    let unscoped_lam = tag(Tag::Static)
       .then_ignore(just(Token::Lambda))
       .then(just(Token::Dollar).ignore_then(name_or_era()))
       .then(term.clone())
@@ -240,7 +243,7 @@ where
     // #tag {fst snd}
     let sup = tag(Tag::Auto)
       .then_ignore(just(Token::LBracket))
-      .then(term.clone().separated_by(list_sep.clone()).at_least(2).collect())
+      .then(term.clone().separated_by(just(Token::Comma).or_not()).at_least(2).collect())
       .then_ignore(just(Token::RBracket))
       .map(|(tag, els)| Term::Sup { tag, els })
       .boxed();
@@ -249,7 +252,7 @@ where
     let dup = just(Token::Let)
       .ignore_then(tag(Tag::Auto))
       .then_ignore(just(Token::LBracket))
-      .then(name_or_era().separated_by(list_sep.clone()).at_least(2).collect())
+      .then(name_or_era().separated_by(just(Token::Comma).or_not()).at_least(2).collect())
       .then_ignore(just(Token::RBracket))
       .then_ignore(just(Token::Equals))
       .then(term.clone())
@@ -258,20 +261,14 @@ where
       .map(|(((tag, bnd), val), next)| Term::Dup { tag, bnd, val: Box::new(val), nxt: Box::new(next) })
       .boxed();
 
-    // let a = ...
-    // let (a, b) = ...
+    // let nam = term; term
     let let_ = just(Token::Let)
-      .ignore_then(pattern().validate(|pat, span, emit| {
-        if matches!(&pat, Pattern::Num(..)) {
-          emit.emit(Rich::custom(span, "Numbers not supported in let."));
-        }
-        pat
-      }))
+      .ignore_then(name_or_era())
       .then_ignore(just(Token::Equals))
       .then(term.clone())
       .then_ignore(term_sep.clone())
       .then(term.clone())
-      .map(|((pat, val), nxt)| Term::Let { pat, val: Box::new(val), nxt: Box::new(nxt) })
+      .map(|((nam, val), nxt)| Term::Let { nam, val: Box::new(val), nxt: Box::new(nxt) })
       .boxed();
 
     // use a = val ';'? nxt
@@ -284,42 +281,69 @@ where
       .map(|((nam, val), nxt)| Term::Use { nam, val: Box::new(val), nxt: Box::new(nxt) })
       .boxed();
 
-    let match_arg = name().then_ignore(just(Token::Equals)).or_not().then(term.clone());
-    let match_args =
-      match_arg.separated_by(list_sep.clone()).at_least(1).allow_trailing().collect::<Vec<_>>();
+    // (name '=')? term
+    let match_arg = name().then_ignore(just(Token::Equals)).or_not().then(term.clone()).boxed();
 
-    // '|'? pat+: term
+    let lnil = just(Token::LBrace)
+      .ignore_then(just(Token::RBrace))
+      .ignored()
+      .map(|_| Some(Name::from(LNIL)))
+      .labelled("List.nil");
+    let snil =
+      select!(Token::Str(s) if s.is_empty() => ()).map(|_| Some(Name::from(SNIL))).labelled("String.nil");
+    let match_pat = choice((name_or_era(), lnil, snil));
+
+    // '|'? name: term
     let match_rule = just(Token::Or)
       .or_not()
-      .ignore_then(pattern().repeated().at_least(1).collect::<Vec<_>>())
+      .ignore_then(match_pat)
+      .labelled("<Match pattern>")
       .then_ignore(just(Token::Colon))
       .then(term.clone())
-      .map(|(pats, body)| Rule { pats, body });
+      .map(|(nam, body)| (nam, vec![], body));
     let match_rules = match_rule.separated_by(term_sep.clone()).at_least(1).allow_trailing().collect();
 
     // match ((scrutinee | <name> = value),?)+ { pat+: term;... }
     let match_ = just(Token::Match)
-      .ignore_then(match_args)
+      .ignore_then(match_arg.clone())
       .then_ignore(just(Token::LBracket))
       .then(match_rules)
       .then_ignore(just(Token::RBracket))
-      .map(|(args, rules)| {
-        let mut args_no_bind = vec![];
-        let mut binds = vec![];
-        for (bind, arg) in args {
-          if let Some(bind) = bind {
-            args_no_bind.push(Term::Var { nam: bind.clone() });
-            binds.push((bind, arg));
-          } else {
-            args_no_bind.push(arg);
+      .map(|((bind, arg), rules)| {
+        if let Some(bind) = bind {
+          Term::Let {
+            nam: Some(bind.clone()),
+            val: Box::new(arg),
+            nxt: Box::new(Term::Mat { arg: Box::new(Term::Var { nam: bind }), rules }),
           }
+        } else {
+          Term::Mat { arg: Box::new(arg), rules }
         }
-        let mat = Term::Mat { args: args_no_bind, rules };
-        binds.into_iter().rfold(mat, |acc, (bind, arg)| Term::Let {
-          pat: Pattern::Var(Some(bind)),
-          val: Box::new(arg),
-          nxt: Box::new(acc),
-        })
+      })
+      .boxed();
+
+    let switch_ctr = choice((number.map(NumCtr::Num), soft_keyword("_").map(|_| NumCtr::Succ(None))))
+      .labelled("<Switch pattern>");
+
+    let switch_rule =
+      just(Token::Or).or_not().ignore_then(switch_ctr).then_ignore(just(Token::Colon)).then(term.clone());
+    let switch_rules = switch_rule.separated_by(term_sep.clone()).at_least(1).allow_trailing().collect();
+
+    let switch = just(Token::Switch)
+      .ignore_then(match_arg)
+      .then_ignore(just(Token::LBracket))
+      .then(switch_rules)
+      .then_ignore(just(Token::RBracket))
+      .map(|((bind, arg), rules)| {
+        if let Some(bind) = bind {
+          Term::Let {
+            nam: Some(bind.clone()),
+            val: Box::new(arg),
+            nxt: Box::new(Term::Swt { arg: Box::new(Term::Var { nam: bind }), rules }),
+          }
+        } else {
+          Term::Swt { arg: Box::new(arg), rules }
+        }
       })
       .boxed();
 
@@ -351,6 +375,18 @@ where
       .map(|els| Term::Tup { els })
       .boxed();
 
+    // let (x, ..n) = term; term
+    let let_tup = just(Token::Let)
+      .ignore_then(just(Token::LParen))
+      .ignore_then(name_or_era().separated_by(just(Token::Comma)).at_least(2).collect())
+      .then_ignore(just(Token::RParen))
+      .then_ignore(just(Token::Equals))
+      .then(term.clone())
+      .then_ignore(term_sep.clone())
+      .then(term.clone())
+      .map(|((bnd, val), next)| Term::Ltp { bnd, val: Box::new(val), nxt: Box::new(next) })
+      .boxed();
+
     let str = select!(Token::Str(s) => Term::Str { val: s }).boxed();
     let chr = select!(Token::Char(c) => Term::Num { val: c }).boxed();
 
@@ -363,16 +399,32 @@ where
       .boxed();
 
     choice((
-      // OBS: `num_op` has to be before app, idk why?
-      // OBS: `app` has to be before `tup` to not overflow on huge app terms
-      // TODO: What happens on huge `tup` and other terms?
-      num_op, app, tup, global_var, var, number, nat, list, str, chr, sup, global_lam, lam, dup, let_, use_,
-      match_, era,
+      num_op,
+      app,
+      tup,
+      unscoped_var,
+      var,
+      nat,
+      num_term,
+      list,
+      str,
+      chr,
+      sup,
+      unscoped_lam,
+      lam,
+      dup,
+      use_,
+      let_tup,
+      let_,
+      match_,
+      switch,
+      era,
     ))
+    .labelled("term")
   })
 }
 
-fn pattern<'a, I>() -> impl Parser<'a, I, Pattern, extra::Err<Rich<'a, Token>>>
+fn rule_pattern<'a, I>() -> impl Parser<'a, I, Pattern, extra::Err<Rich<'a, Token>>>
 where
   I: ValueInput<'a, Token = Token, Span = SimpleSpan>,
 {
@@ -407,28 +459,22 @@ where
       n
     });
 
-    let num = num_val.map(|n| Pattern::Num(NumCtr::Num(n))).labelled("<Num>");
+    let num = num_val.map(Pattern::Num).labelled("<Num>");
 
-    let succ = num_val
-      .then_ignore(just(Token::Add))
-      .then(name_or_era().or_not())
-      .map(|(num, nam)| Pattern::Num(NumCtr::Succ(num, nam)))
-      .labelled("<Num>+")
-      .boxed();
-
-    let chr = select!(Token::Char(c) => Pattern::Num(NumCtr::Num(c))).labelled("<Char>").boxed();
+    let chr = select!(Token::Char(c) => Pattern::Num(c)).labelled("<Char>").boxed();
 
     let str = select!(Token::Str(s) => Pattern::Str(s)).labelled("<String>").boxed();
 
-    choice((succ, num, chr, str, var, ctr, list, tup))
+    choice((num, chr, str, var, ctr, list, tup))
   })
+  .labelled("<Rule pattern>")
 }
 
-fn rule_pattern<'a, I>() -> impl Parser<'a, I, (Name, Vec<Pattern>), extra::Err<Rich<'a, Token>>>
+fn rule_lhs<'a, I>() -> impl Parser<'a, I, (Name, Vec<Pattern>), extra::Err<Rich<'a, Token>>>
 where
   I: ValueInput<'a, Token = Token, Span = SimpleSpan>,
 {
-  let lhs = tl_name().then(pattern().repeated().collect()).boxed();
+  let lhs = tl_name().then(rule_pattern().repeated().collect()).boxed();
 
   let just_lhs = lhs.clone().then_ignore(just(Token::Equals).map_err(|err: Rich<'a, Token>| {
     Error::<I>::expected_found(
@@ -455,7 +501,7 @@ fn rule<'a, I>() -> impl Parser<'a, I, TopLevel, extra::Err<Rich<'a, Token>>>
 where
   I: ValueInput<'a, Token = Token, Span = SimpleSpan>,
 {
-  rule_pattern().then(term()).map(move |((name, pats), body)| TopLevel::Rule((name, Rule { pats, body })))
+  rule_lhs().then(term()).map(move |((name, pats), body)| TopLevel::Rule((name, Rule { pats, body })))
 }
 
 fn datatype<'a, I>() -> impl Parser<'a, I, TopLevel, extra::Err<Rich<'a, Token>>>

@@ -2,4 +2,4 @@
 source: tests/golden_tests.rs
 input_file: tests/golden_tests/run_lazy/match_mult_linearization.hvm
 ---
-λa match a { 0: λb λc λd (+ (+ b c) d); 1+e: λf λg λh (+ (+ (+ e f) g) h) }
+λa switch a { 0: λb λc λd (+ (+ b c) d); _: λf λg λh (+ (+ (+ a-1 f) g) h) }

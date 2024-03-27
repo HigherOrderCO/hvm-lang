@@ -1,4 +1,4 @@
-use super::{parser::parse_book, Book, Name, NumCtr, Pattern, Term};
+use super::{parser::parse_book, Book, Name, Pattern, Term};
 
 const BUILTINS: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/term/builtins.hvm"));
 
@@ -38,46 +38,16 @@ impl Book {
 
 impl Term {
   fn encode_builtins(&mut self) {
-    match self {
+    Term::recursive_call(move || match self {
       Term::Lst { els } => *self = Term::encode_list(std::mem::take(els)),
       Term::Str { val } => *self = Term::encode_str(val),
       Term::Nat { val } => *self = Term::encode_nat(*val),
-      Term::Let { pat, val, nxt } => {
-        pat.encode_builtins();
-        val.encode_builtins();
-        nxt.encode_builtins();
-      }
-      Term::Lam { bod, .. } | Term::Chn { bod, .. } => bod.encode_builtins(),
-      Term::App { fun: fst, arg: snd, .. }
-      | Term::Opx { fst, snd, .. }
-      | Term::Dup { val: fst, nxt: snd, .. } => {
-        fst.encode_builtins();
-        snd.encode_builtins();
-      }
-      Term::Sup { els, .. } | Term::Tup { els } => {
-        for el in els {
-          el.encode_builtins();
+      _ => {
+        for child in self.children_mut() {
+          child.encode_builtins();
         }
       }
-      Term::Mat { args, rules } => {
-        for arg in args {
-          arg.encode_builtins();
-        }
-        for rule in rules {
-          for pat in &mut rule.pats {
-            pat.encode_builtins();
-          }
-          rule.body.encode_builtins();
-        }
-      }
-      Term::Use { .. }
-      | Term::Var { .. }
-      | Term::Lnk { .. }
-      | Term::Ref { .. }
-      | Term::Num { .. }
-      | Term::Era
-      | Term::Err => {}
-    }
+    })
   }
 
   fn encode_list(elements: Vec<Term>) -> Term {
@@ -133,7 +103,7 @@ impl Pattern {
     let lnil = Pattern::Ctr(Name::from(SNIL), vec![]);
 
     str.chars().rfold(lnil, |tail, head| {
-      let head = Pattern::Num(NumCtr::Num(head as u64));
+      let head = Pattern::Num(head as u64);
       Pattern::Ctr(Name::from(SCONS), vec![head, tail])
     })
   }

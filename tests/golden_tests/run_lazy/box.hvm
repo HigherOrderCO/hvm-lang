@@ -2,6 +2,6 @@ data _Box = (Box val)
 
 Box.subst (Box n) from to = (Box.subst.go n (== from n) to)
 Box.subst.go a 0   to = (Box a)
-Box.subst.go a 1+* to = to
+Box.subst.go a * to = to
 
 Main = (Box.subst (Box 4) 4 (Box 10))

@@ -1,6 +1,6 @@
-pred = @n match n {
+pred = @n switch n {
   0: 0
-  1+: n-1
+  _: n-1
 }
 
 main = (pred 4)

@@ -3,7 +3,7 @@ source: tests/golden_tests.rs
 input_file: tests/golden_tests/encode_pattern_match/match_num_adt_tup_parser.hvm
 ---
 TaggedScott:
-(Parse) = λa λb (#String (b #String λc #String λd λe (match (- c 40) { 0: λf λg (Ok (40, g, f)); 1+: λi match i { 0: λj λk (Ok (41, k, j)); 1+: λm match (- m 18446744073709551584) { 0: λn λo (Ok (0, o, n)); 1+: λq λs λt (Err ((String.cons (+ q 11) t), s)) } } } e d) λu (Err (String.nil, u))) a)
+(Parse) = λa λb (#String (b #String λc #String λd λe (switch (- c 10) { 0: λg λh (Ok (0, h, g)); _: λi λj λk (switch (- i 29) { 0: λm λn (Ok (40, n, m)); _: λo λp λq (switch o { 0: λr λs (Ok (41, s, r)); _: λt λu λv (Err ((String.cons (+ t 42) v), u)) } p q) } j k) } e d) λw (Err (String.nil, w))) a)
 
 (main) = #Result_ ((Parse * (String.cons 40 (String.cons 43 String.nil))) #Result_ λd let (e, f, g) = d; (e, (Parse g f)) #Result_ λh (Err h))
 
@@ -16,7 +16,7 @@ TaggedScott:
 (Err) = λa #Result_ λ* #Result_ λc #Result_ (c a)
 
 Scott:
-(Parse) = λa λb (b λc λd λe (match (- c 40) { 0: λf λg (Ok (40, g, f)); 1+: λi match i { 0: λj λk (Ok (41, k, j)); 1+: λm match (- m 18446744073709551584) { 0: λn λo (Ok (0, o, n)); 1+: λq λs λt (Err ((String.cons (+ q 11) t), s)) } } } e d) λu (Err (String.nil, u)) a)
+(Parse) = λa λb (b λc λd λe (switch (- c 10) { 0: λg λh (Ok (0, h, g)); _: λi λj λk (switch (- i 29) { 0: λm λn (Ok (40, n, m)); _: λo λp λq (switch o { 0: λr λs (Ok (41, s, r)); _: λt λu λv (Err ((String.cons (+ t 42) v), u)) } p q) } j k) } e d) λw (Err (String.nil, w)) a)
 
 (main) = (Parse * (String.cons 40 (String.cons 43 String.nil)) λd let (e, f, g) = d; (e, (Parse g f)) λh (Err h))
 

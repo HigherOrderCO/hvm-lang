@@ -1,6 +1,6 @@
-Pred = λt match t {
+Pred = λt switch t {
   0: 0
-  1+: t-1
+  _: t-1
 }
 
 main = (Pred 3)

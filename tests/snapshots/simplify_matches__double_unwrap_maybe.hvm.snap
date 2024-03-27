@@ -2,10 +2,10 @@
 source: tests/golden_tests.rs
 input_file: tests/golden_tests/simplify_matches/double_unwrap_maybe.hvm
 ---
-(DoubleUnwrap) = λa λb (match a { (Some c): λd (match c { (Some e): λ* e; (None): λg g } d); (None): λi i } b)
+(DoubleUnwrap) = λ%arg0 λ%arg1 (match %arg0 { Some: λ%arg1 (match %arg0.x { Some: λ%arg1 %arg0.x.x; None: λ%arg1 %arg1 } %arg1); None: λ%arg1 %arg1 } %arg1)
 
 (Main) = (DoubleUnwrap (Some None) 5)
 
-(Some) = λa #Maybe λb #Maybe λ* #Maybe (b a)
+(None) = #Maybe λSome #Maybe λNone None
 
-(None) = #Maybe λ* #Maybe λb b
+(Some) = λx #Maybe λSome #Maybe λNone #Maybe (Some x)

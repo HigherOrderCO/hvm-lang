@@ -4,7 +4,7 @@ use crate::{
     NodeKind::{self, *},
     Port, ROOT,
   },
-  term::{Book, Name, NumCtr, Op, Pattern, Tag, Term},
+  term::{Book, Name, NumCtr, Op, Tag, Term},
 };
 use std::collections::{hash_map::Entry, HashMap};
 
@@ -111,30 +111,31 @@ impl EncodeTermState<'_> {
 
           Some(Port(app, 2))
         }
-        // core: & cond ~  (zero succ) ret
-        Term::Mat { args, rules } => {
-          // At this point should be only simple num matches.
-          let arg = args.iter().next().unwrap();
-          debug_assert!(matches!(rules[0].pats[..], [Pattern::Num(NumCtr::Num(0))]));
-          debug_assert!(matches!(rules[1].pats[..], [Pattern::Num(NumCtr::Succ(1, None))]));
+        Term::Mat { .. } => unreachable!("Should've been desugared already"),
+        // core: & arg ~ ?<(zero succ) ret>
+        Term::Swt { arg, rules } => {
+          // At this point should be only num matches of 0 and succ.
+          debug_assert!(rules.len() == 2);
+          debug_assert!(matches!(rules[0].0, NumCtr::Num(0)));
+          debug_assert!(matches!(rules[1].0, NumCtr::Succ(None)));
 
-          let if_ = self.inet.new_node(Mat);
+          let mat = self.inet.new_node(Mat);
 
-          let cond = self.encode_term(arg, Port(if_, 0));
-          self.link_local(Port(if_, 0), cond);
+          let arg = self.encode_term(arg, Port(mat, 0));
+          self.link_local(Port(mat, 0), arg);
 
-          let zero = &rules[0].body;
-          let succ = &rules[1].body;
+          let zero = &rules[0].1;
+          let succ = &rules[1].1;
 
           let sel = self.inet.new_node(Con { lab: None });
-          self.inet.link(Port(sel, 0), Port(if_, 1));
+          self.inet.link(Port(sel, 0), Port(mat, 1));
           let zero = self.encode_term(zero, Port(sel, 1));
           self.link_local(Port(sel, 1), zero);
 
           let succ = self.encode_term(succ, Port(sel, 2));
           self.link_local(Port(sel, 2), succ);
 
-          Some(Port(if_, 2))
+          Some(Port(mat, 2))
         }
         // A dup becomes a dup node too. Ports for dups of size 2:
         // - 0: points to the value projected.
@@ -189,24 +190,23 @@ impl EncodeTermState<'_> {
           self.inet.link(up, Port(node, 0));
           Some(Port(node, 0))
         }
-        Term::Let { pat: Pattern::Tup(args), val, nxt } => {
-          let nams = args.iter().map(|arg| if let Pattern::Var(nam) = arg { nam } else { unreachable!() });
-          let (main, aux) = self.make_node_list(Tup, args.len());
+        Term::Ltp { bnd, val, nxt } => {
+          let (main, aux) = self.make_node_list(Tup, bnd.len());
 
           let val = self.encode_term(val, main);
           self.link_local(main, val);
 
-          for (nam, aux) in nams.clone().zip(aux.iter()) {
+          for (nam, aux) in bnd.iter().zip(aux.iter()) {
             self.push_scope(nam, *aux);
           }
           let nxt = self.encode_term(nxt, up);
-          for (nam, aux) in nams.rev().zip(aux.iter().rev()) {
+          for (nam, aux) in bnd.iter().rev().zip(aux.iter().rev()) {
             self.pop_scope(nam, *aux);
           }
 
           nxt
         }
-        Term::Let { pat: Pattern::Var(None), val, nxt } => {
+        Term::Let { nam: None, val, nxt } => {
           let nod = self.inet.new_node(Era);
           let val = self.encode_term(val, Port(nod, 0));
 

@@ -1,6 +1,6 @@
 data bool = true | false
 
-go true  0   = 1
-go false 1+* = 0
+go true  0 = 1
+go false _ = 0
 
 main = (go true 1)

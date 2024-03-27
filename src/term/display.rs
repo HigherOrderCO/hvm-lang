@@ -1,4 +1,4 @@
-use super::{Book, Definition, Name, NumCtr, Op, Pattern, Rule, Tag, Term, Type};
+use super::{Book, Definition, Name, NumCtr, Op, Pattern, Rule, Tag, Term};
 use std::{fmt, ops::Deref};
 
 /* Some aux structures for things that are not so simple to display */
@@ -50,8 +50,8 @@ impl fmt::Display for Term {
         write!(f, "{}λ${} {}", tag.display_padded(), var_as_str(nam), bod)
       }
       Term::Lnk { nam } => write!(f, "${nam}"),
-      Term::Let { pat, val, nxt } => {
-        write!(f, "let {} = {}; {}", pat, val, nxt)
+      Term::Let { nam, val, nxt } => {
+        write!(f, "let {} = {}; {}", var_as_str(nam), val, nxt)
       }
       Term::Use { nam, val, nxt } => {
         write!(f, "use {} = {}; {}", nam, val, nxt)
@@ -60,17 +60,26 @@ impl fmt::Display for Term {
       Term::App { tag, fun, arg } => {
         write!(f, "{}({} {})", tag.display_padded(), fun.display_app(tag), arg)
       }
-      Term::Mat { args, rules } => {
+      Term::Mat { arg, rules } => {
         write!(
           f,
           "match {} {{ {} }}",
-          DisplayJoin(|| args, ", "),
-          DisplayJoin(
-            || rules.iter().map(|rule| display!("{}: {}", DisplayJoin(|| &rule.pats, " "), rule.body)),
-            "; "
-          ),
+          arg,
+          DisplayJoin(|| rules.iter().map(|rule| display!("{}: {}", var_as_str(&rule.0), rule.2)), "; "),
         )
       }
+      Term::Swt { arg, rules } => {
+        write!(
+          f,
+          "switch {} {{ {} }}",
+          arg,
+          DisplayJoin(|| rules.iter().map(|rule| display!("{}: {}", rule.0, rule.1)), "; "),
+        )
+      }
+      Term::Ltp { bnd, val, nxt } => {
+        write!(f, "let ({}) = {}; {}", DisplayJoin(|| bnd.iter().map(var_as_str), ", "), val, nxt)
+      }
+      Term::Tup { els } => write!(f, "({})", DisplayJoin(|| els.iter(), ", "),),
       Term::Dup { tag, bnd, val, nxt } => {
         write!(f, "let {}{{{}}} = {}; {}", tag, DisplayJoin(|| bnd.iter().map(var_as_str), " "), val, nxt)
       }
@@ -84,7 +93,6 @@ impl fmt::Display for Term {
       Term::Opx { op, fst, snd } => {
         write!(f, "({} {} {})", op, fst, snd)
       }
-      Term::Tup { els } => write!(f, "({})", DisplayJoin(|| els.iter(), ", "),),
       Term::Lst { els } => write!(f, "[{}]", DisplayJoin(|| els.iter(), ", "),),
       Term::Err => write!(f, "<Invalid>"),
     })
@@ -145,9 +153,7 @@ impl fmt::Display for NumCtr {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       NumCtr::Num(n) => write!(f, "{n}"),
-      NumCtr::Succ(n, None) => write!(f, "{n}+"),
-      NumCtr::Succ(n, Some(None)) => write!(f, "{n}+*"),
-      NumCtr::Succ(n, Some(Some(nam))) => write!(f, "{n}+{nam}"),
+      NumCtr::Succ(_) => write!(f, "_"),
     }
   }
 }
@@ -178,18 +184,6 @@ impl fmt::Display for Op {
 impl fmt::Display for Name {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     self.0.fmt(f)
-  }
-}
-
-impl fmt::Display for Type {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match self {
-      Type::Any => write!(f, "any"),
-      Type::Tup(n) => write!(f, "tup{n}"),
-      Type::Num => write!(f, "num"),
-      Type::NumSucc(n) => write!(f, "{n}+"),
-      Type::Adt(nam) => write!(f, "{nam}"),
-    }
   }
 }
 

@@ -2,8 +2,8 @@
 source: tests/golden_tests.rs
 input_file: tests/golden_tests/simplify_matches/nested_0ary.hvm
 ---
-(Unpack) = λa λb (match b { (Cons c d): λe (match d { (Cons f g): λh λi (h (Cons i (Cons f g))); (Nil): λ* λk k } e c); (Nil): λ* Nil } a)
+(Unpack) = λ%arg0 λ%arg1 (match %arg1 { Cons: λ%arg0 (match %arg1.tail { Cons: λ%arg0 λ%arg1.head (%arg0 (Cons %arg1.head (Cons %arg1.tail.head %arg1.tail.tail))); Nil: λ%arg0 λ%arg1.head %arg1.head } %arg0 %arg1.head); Nil: λ%arg0 Nil } %arg0)
 
-(Cons) = λa λb #list λc #list λ* #list (c a b)
+(Nil) = #list λCons #list λNil Nil
 
-(Nil) = #list λ* #list λb b
+(Cons) = λhead λtail #list λCons #list λNil #list (Cons head tail)

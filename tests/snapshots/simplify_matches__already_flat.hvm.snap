@@ -2,32 +2,32 @@
 source: tests/golden_tests.rs
 input_file: tests/golden_tests/simplify_matches/already_flat.hvm
 ---
-(Rule1) = λa a
+(Rule1) = λx x
 
-(Rule2) = λ* λb b
+(Rule2) = λ%arg0 λx x
 
-(Rule3) = λa λb λc λd (a b c d)
+(Rule3) = λ%arg0 λ%arg1 λ%arg2 λ%arg3 (%arg0 %arg1 %arg2 %arg3)
 
-(Rule4) = λa match a { (CtrA): λc c; (CtrB d): d }
+(Rule4) = λ%arg0 match %arg0 { CtrA: λx x; CtrB: %arg0.x }
 
-(Rule5) = λa λb (match a { (CtrA1 c): λd (c d); (CtrA2 e f): λg (e f g); (CtrA3 h): λi (match i { (CtrB0): λj (CtrA3 j); (CtrB1 l): λm (CtrA3 m l); (CtrB2 n): λo (CtrA3 o (CtrB2 n)); (CtrB3 p): λq (q p) } h) } b)
+(Rule5) = λ%arg0 λ%arg1 (match %arg0 { CtrA1: λ%arg1 (%arg0.a %arg1); CtrA2: λ%arg1 (%arg0.a1 %arg0.a2 %arg1); CtrA3: λ%arg1 (match %arg1 { CtrB0: λ%arg0.a (CtrA3 %arg0.a); CtrB1: λ%arg0.a (CtrA3 %arg0.a %arg1.b); CtrB2: λ%arg0.a (CtrA3 %arg0.a (CtrB2 %arg1.b)); CtrB3: λ%arg0.a (%arg0.a %arg1.b) } %arg0.a) } %arg1)
 
-(Rule6) = λa a
+(Rule6) = λ%arg0 %arg0
 
-(CtrA) = #Foo λa #Foo λ* a
+(CtrB3) = λb #Baz λCtrB0 #Baz λCtrB1 #Baz λCtrB2 #Baz λCtrB3 #Baz (CtrB3 b)
 
-(CtrB) = λa #Foo λ* #Foo λc #Foo (c a)
+(CtrB2) = λb #Baz λCtrB0 #Baz λCtrB1 #Baz λCtrB2 #Baz λCtrB3 #Baz (CtrB2 b)
 
-(CtrA1) = λa #Bar λb #Bar λ* #Bar λ* #Bar (b a)
+(CtrB1) = λb #Baz λCtrB0 #Baz λCtrB1 #Baz λCtrB2 #Baz λCtrB3 #Baz (CtrB1 b)
 
-(CtrA2) = λa λb #Bar λ* #Bar λd #Bar λ* #Bar (d a b)
+(CtrB0) = #Baz λCtrB0 #Baz λCtrB1 #Baz λCtrB2 #Baz λCtrB3 CtrB0
 
-(CtrA3) = λa #Bar λ* #Bar λ* #Bar λd #Bar (d a)
+(CtrA) = #Foo λCtrA #Foo λCtrB CtrA
 
-(CtrB0) = #Baz λa #Baz λ* #Baz λ* #Baz λ* a
+(CtrB) = λx #Foo λCtrA #Foo λCtrB #Foo (CtrB x)
 
-(CtrB1) = λa #Baz λ* #Baz λc #Baz λ* #Baz λ* #Baz (c a)
+(CtrA1) = λa #Bar λCtrA1 #Bar λCtrA2 #Bar λCtrA3 #Bar (CtrA1 a)
 
-(CtrB2) = λa #Baz λ* #Baz λ* #Baz λd #Baz λ* #Baz (d a)
+(CtrA2) = λa1 λa2 #Bar λCtrA1 #Bar λCtrA2 #Bar λCtrA3 #Bar (CtrA2 a1 a2)
 
-(CtrB3) = λa #Baz λ* #Baz λ* #Baz λ* #Baz λe #Baz (e a)
+(CtrA3) = λa #Bar λCtrA1 #Bar λCtrA2 #Bar λCtrA3 #Bar (CtrA3 a)

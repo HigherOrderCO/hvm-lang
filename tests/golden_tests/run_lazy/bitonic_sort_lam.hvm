@@ -2,9 +2,9 @@
 Leaf = λx      #Tree λl #Tree λn (l x)
 Node = λx0 λx1 #Tree λl #Tree λn (n x0 x1)
 
-swap = λn match n {
+swap = λn switch n {
   0: λx0 λx1 (Node x0 x1)
-  1+: λx0 λx1 (Node x1 x0)
+  _: λx0 λx1 (Node x1 x0)
 }
 
 warp = λa
@@ -41,9 +41,9 @@ sort = λa
   let a_node = λa0 λa1 λs (flow (Node (sort a0 0) (sort a1 1)) s)
   #Tree (a a_leaf a_node)
 
-gen = λn match n {
+gen = λn switch n {
   0: λx (Leaf x)
-  1+: λx (Node (gen n-1 (* x 2)) (gen n-1 (+ (* x 2) 1)))
+  _: λx (Node (gen n-1 (* x 2)) (gen n-1 (+ (* x 2) 1)))
 }
 
 rev = λa

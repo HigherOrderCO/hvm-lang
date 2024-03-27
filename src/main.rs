@@ -213,8 +213,10 @@ impl OptArgs {
 #[derive(clap::ValueEnum, Clone, Debug)]
 pub enum WarningArgs {
   All,
-  UnusedDefs,
-  MatchOnlyVars,
+  IrrefutableMatch,
+  RedundantMatch,
+  UnreachableMatch,
+  UnusedDefinition,
   RepeatedBind,
   MutualRecursionCycle,
 }
@@ -250,6 +252,7 @@ fn execute_cli_mode(mut cli: Cli) -> Result<(), Diagnostics> {
       let mut book = load_book(&path)?;
       check_book(&mut book)?;
     }
+
     Mode::Compile { path, comp_opts, warn_opts, lazy_mode } => {
       let diagnostics_cfg = set_warning_cfg_from_cli(
         DiagnosticsConfig::new(Severity::Warning, arg_verbose),
@@ -268,6 +271,7 @@ fn execute_cli_mode(mut cli: Cli) -> Result<(), Diagnostics> {
       eprint!("{}", compile_res.diagnostics);
       println!("{}", compile_res.core_book);
     }
+
     Mode::Desugar { path, comp_opts, warn_opts, lazy_mode } => {
       let diagnostics_cfg = set_warning_cfg_from_cli(
         DiagnosticsConfig::new(Severity::Warning, arg_verbose),
@@ -286,6 +290,7 @@ fn execute_cli_mode(mut cli: Cli) -> Result<(), Diagnostics> {
       eprint!("{diagnostics}");
       println!("{book}");
     }
+
     Mode::Run {
       path,
       max_memory,
@@ -369,15 +374,19 @@ fn set_warning_cfg_from_cli(
   fn set(cfg: &mut DiagnosticsConfig, severity: Severity, cli_val: WarningArgs, lazy_mode: bool) {
     match cli_val {
       WarningArgs::All => {
+        cfg.irrefutable_match = severity;
+        cfg.redundant_match = severity;
+        cfg.unreachable_match = severity;
         cfg.unused_definition = severity;
-        cfg.match_only_vars = severity;
         cfg.repeated_bind = severity;
         if !lazy_mode {
           cfg.mutual_recursion_cycle = severity;
         }
       }
-      WarningArgs::UnusedDefs => cfg.unused_definition = severity,
-      WarningArgs::MatchOnlyVars => cfg.match_only_vars = severity,
+      WarningArgs::IrrefutableMatch => cfg.irrefutable_match = severity,
+      WarningArgs::RedundantMatch => cfg.redundant_match = severity,
+      WarningArgs::UnreachableMatch => cfg.unreachable_match = severity,
+      WarningArgs::UnusedDefinition => cfg.unused_definition = severity,
       WarningArgs::RepeatedBind => cfg.repeated_bind = severity,
       WarningArgs::MutualRecursionCycle => cfg.mutual_recursion_cycle = severity,
     }

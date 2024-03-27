@@ -1,4 +1,6 @@
-Pred 0      = 0
-Pred 1+pred = pred
+Pred n = switch n {
+  0: 0
+  _: n-1
+}
 
 Main = (Pred 43)

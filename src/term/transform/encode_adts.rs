@@ -1,6 +1,7 @@
 use crate::term::{AdtEncoding, Book, Definition, Name, Rule, Tag, Term};
 
 impl Book {
+  /// Defines a function for each constructor in each ADT in the book.
   pub fn encode_adts(&mut self, adt_encoding: AdtEncoding) {
     let mut defs = vec![];
     for (adt_name, adt) in &self.adts {

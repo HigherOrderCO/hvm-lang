@@ -1,26 +1,25 @@
-use crate::term::{Book, Name, Term};
-use itertools::Itertools;
+use crate::term::{Book, Name, NumCtr, Term};
 use std::collections::{BTreeMap, BTreeSet};
 
 impl Book {
   /// Linearizes the variables between match cases, transforming them into combinators when possible.
-  pub fn linearize_simple_matches(&mut self, lift_all_vars: bool) {
+  pub fn linearize_matches(&mut self, lift_all_vars: bool) {
     for def in self.defs.values_mut() {
       for rule in def.rules.iter_mut() {
-        rule.body.linearize_simple_matches(lift_all_vars);
+        rule.body.linearize_matches(lift_all_vars);
       }
     }
   }
 }
 
 impl Term {
-  fn linearize_simple_matches(&mut self, lift_all_vars: bool) {
+  fn linearize_matches(&mut self, lift_all_vars: bool) {
     Term::recursive_call(move || {
       for child in self.children_mut() {
-        child.linearize_simple_matches(lift_all_vars);
+        child.linearize_matches(lift_all_vars);
       }
 
-      if let Term::Mat { .. } = self {
+      if matches!(self, Term::Mat { .. } | Term::Swt { .. }) {
         lift_match_vars(self, lift_all_vars);
       }
     })
@@ -33,43 +32,71 @@ impl Term {
 /// If `lift_all_vars`, acts on all variables found in the arms,
 /// Otherwise, only lift vars that are used on more than one arm.
 ///
-/// Obs: This does not interact unscoped variables
+/// Obs: This does not modify unscoped variables
 pub fn lift_match_vars(match_term: &mut Term, lift_all_vars: bool) -> &mut Term {
-  let Term::Mat { args: _, rules } = match_term else { unreachable!() };
-
-  let free = rules.iter().flat_map(|rule| {
-    rule
-      .body
-      .free_vars()
-      .into_iter()
-      .filter(|(name, _)| !rule.pats.iter().any(|p| p.binds().flatten().contains(name)))
-  });
-
-  // Collect the vars.
-  // We need consistent iteration order.
-  let free_vars: BTreeSet<Name> = if lift_all_vars {
-    free.map(|(name, _)| name).collect()
-  } else {
-    free
-      .fold(BTreeMap::new(), |mut acc, (name, count)| {
-        *acc.entry(name).or_insert(0) += count.min(1);
-        acc
+  // Collect match arms with binds
+  let arms: Vec<_> = match match_term {
+    Term::Mat { arg: _, rules } => {
+      rules.iter().map(|(_, binds, body)| (binds.iter().flatten().cloned().collect(), body)).collect()
+    }
+    Term::Swt { arg: _, rules } => rules
+      .iter()
+      .map(|(ctr, body)| match ctr {
+        NumCtr::Num(_) => (vec![], body),
+        NumCtr::Succ(None) => (vec![], body),
+        NumCtr::Succ(Some(var)) => (vec![var.clone()], body),
       })
+      .collect(),
+    _ => unreachable!(),
+  };
+
+  // Collect all free vars in the match arms
+  let mut free_vars = Vec::<Vec<_>>::new();
+  for (binds, body) in arms {
+    let mut arm_free_vars = body.free_vars();
+    for bind in binds {
+      arm_free_vars.remove(&bind);
+    }
+    free_vars.push(arm_free_vars.into_keys().collect());
+  }
+
+  // Collect the vars to lift
+  // We need consistent iteration order.
+  let vars_to_lift: BTreeSet<Name> = if lift_all_vars {
+    free_vars.into_iter().flatten().collect()
+  } else {
+    // If not lifting all vars, lift only those that are used in more than one arm.
+    let mut vars_to_lift = BTreeMap::<Name, u64>::new();
+    for free_vars in free_vars {
+      for free_var in free_vars {
+        *vars_to_lift.entry(free_var).or_default() += 1;
+      }
+    }
+    vars_to_lift
       .into_iter()
-      .filter(|(_, count)| *count >= 2)
-      .map(|(name, _)| name)
+      .filter_map(|(var, arm_count)| if arm_count >= 2 { Some(var) } else { None })
       .collect()
   };
 
   // Add lambdas to the arms
-  for rule in rules {
-    let old_body = std::mem::take(&mut rule.body);
-    rule.body = free_vars.iter().cloned().rfold(old_body, |body, nam| Term::named_lam(nam, body));
+  match match_term {
+    Term::Mat { arg: _, rules } => {
+      for rule in rules {
+        let old_body = std::mem::take(&mut rule.2);
+        rule.2 = vars_to_lift.iter().cloned().rfold(old_body, |body, nam| Term::named_lam(nam, body));
+      }
+    }
+    Term::Swt { arg: _, rules } => {
+      for rule in rules {
+        let old_body = std::mem::take(&mut rule.1);
+        rule.1 = vars_to_lift.iter().cloned().rfold(old_body, |body, nam| Term::named_lam(nam, body));
+      }
+    }
+    _ => unreachable!(),
   }
 
   // Add apps to the match
-  let old_match = std::mem::take(match_term);
-  *match_term = free_vars.into_iter().fold(old_match, Term::arg_call);
+  *match_term = vars_to_lift.into_iter().fold(std::mem::take(match_term), Term::arg_call);
 
   get_match_reference(match_term)
 }
@@ -81,7 +108,7 @@ fn get_match_reference(mut match_term: &mut Term) -> &mut Term {
   loop {
     match match_term {
       Term::App { tag: _, fun, arg: _ } => match_term = fun.as_mut(),
-      Term::Mat { .. } => return match_term,
+      Term::Swt { .. } | Term::Mat { .. } => return match_term,
       _ => unreachable!(),
     }
   }

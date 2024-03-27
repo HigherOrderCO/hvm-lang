@@ -1,4 +1,4 @@
-use crate::term::{Book, Name, Pattern, Tag, Term};
+use crate::term::{Book, Name, Tag, Term};
 use std::collections::HashMap;
 
 /// Erases variables that weren't used, dups the ones that were used more than once.
@@ -36,7 +36,7 @@ impl Term {
 
 fn term_to_affine(term: &mut Term, var_uses: &mut HashMap<Name, u64>) {
   Term::recursive_call(move || match term {
-    Term::Let { pat: Pattern::Var(Some(nam)), val, nxt } => {
+    Term::Let { nam: Some(nam), val, nxt } => {
       // TODO: This is swapping the order of how the bindings are
       // used, since it's not following the usual AST order (first
       // val, then nxt). Doesn't change behaviour, but looks strange.
@@ -51,7 +51,7 @@ fn term_to_affine(term: &mut Term, var_uses: &mut HashMap<Name, u64>) {
             let val = std::mem::take(val);
             let nxt = std::mem::take(nxt);
 
-            *term = Term::Let { pat: Pattern::Var(None), val, nxt };
+            *term = Term::Let { nam: None, val, nxt };
           } else {
             *term = std::mem::take(nxt.as_mut());
           }
@@ -69,7 +69,7 @@ fn term_to_affine(term: &mut Term, var_uses: &mut HashMap<Name, u64>) {
       }
     }
 
-    Term::Let { pat: Pattern::Var(None), val, nxt } => {
+    Term::Let { nam: None, val, nxt } => {
       term_to_affine(nxt, var_uses);
 
       if val.has_unscoped() {

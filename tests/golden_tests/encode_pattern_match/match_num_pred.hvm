@@ -1,18 +1,21 @@
-pred 0 = 0
-pred 1+x = x
+pred = @n switch n {
+  0: 0
+  _: n-1
+}
 
-pred2 2+x = x
-pred2 * = 0
+pred2 n = switch n {
+  0: 0
+  1: 0
+  _: n-2
+}
 
 pred3 0 = 0
 pred3 1 = 0
 pred3 2 = 0
-pred3 3+x-3 = x-3
+pred3 x = (- x 3)
 
-pred4 0 = 0
-pred4 1 = 0
-pred4 2 = 0
-pred4 3 = 0
-pred4 n = (- n 4)
+zero 0 = 1
+zero 1 = 0
+zero * = 0
 
 main = *

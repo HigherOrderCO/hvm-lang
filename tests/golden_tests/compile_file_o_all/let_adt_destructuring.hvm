@@ -1,7 +1,0 @@
-data Boxed = (Box val)
-
-// Both rules should have the same compiled net structure
-// (Unbox (Box val)) = val 
-(Unbox x) = let (Box val) = x; val
-
-main = (Unbox (Box 1))

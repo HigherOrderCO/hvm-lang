@@ -7,9 +7,9 @@ sort (Node a b) = (merge (sort a) (sort b))
 merge (Nil) b = b
 merge (Cons x xs) (Nil) = (Cons x xs)
 merge (Cons x xs) (Cons y ys) = 
-  let t = match (< x y) {
+  let t = switch (< x y) {
     0: λaλbλcλt(t c a b)
-    1+: λaλbλcλt(t a b c)
+    _: λaλbλcλt(t a b c)
   }
 
   let t = (t (Cons x) λx(x) (Cons y))
@@ -19,9 +19,9 @@ merge (Cons x xs) (Cons y ys) =
 sum Nil = 0
 sum (Cons h t) = (+ h (sum t))
 
-range n = match n {
+range n = switch n {
   0: λx (Leaf x)
-  1+: λx (Node (range n-1 (+ (* x 2) 1)) (range n-1 (* x 2)))
+  _: λx (Node (range n-1 (+ (* x 2) 1)) (range n-1 (* x 2)))
 }
 
 main = (sum (sort (range 4 0)))

@@ -2,4 +2,4 @@
 source: tests/golden_tests.rs
 input_file: tests/golden_tests/cli/desugar_linearize_matches.hvm
 ---
-(main) = λa λb (match a { 0: λc c; 1+: λ* λf f } b)
+(main) = λa λb (switch a { 0: λc c; _: λ* λe e } b)

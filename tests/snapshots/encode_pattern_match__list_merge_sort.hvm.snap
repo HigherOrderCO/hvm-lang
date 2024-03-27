@@ -3,7 +3,7 @@ source: tests/golden_tests.rs
 input_file: tests/golden_tests/encode_pattern_match/list_merge_sort.hvm
 ---
 TaggedScott:
-(If) = λa λb λc (#Bool (a λd λ* d λ* λh h) b c)
+(If) = λa λb λc (#Bool (a λd λ* d λ* λg g) b c)
 
 (Pure) = λa (Cons a Nil)
 
@@ -15,7 +15,7 @@ TaggedScott:
 
 (MergePair) = λa λb (#List_ (b #List_ λc #List_ λd λe (#List_ (d #List_ λf #List_ λg λh let {h h_2} = h; λi (Cons (Merge h i f) (MergePair h_2 g)) λ* λk (Cons k Nil)) e c) λ* Nil) a)
 
-(Merge) = λa λb λc (#List_ (b #List_ λd #List_ λe λf λg (#List_ (g #List_ λh let {h h_2 h_3} = h; #List_ λi let {i i_2} = i; λj let {j j_2 j_3} = j; λk let {k k_2 k_3} = k; λl let {l l_2} = l; (If (j k h) (Cons k_2 (Merge j_2 l (Cons h_2 i))) (Cons h_3 (Merge j_3 (Cons k_3 l_2) i_2))) λ* λp λq (Cons p q)) f d e) λ* λt t) a c)
+(Merge) = λa λb λc (#List_ (b #List_ λd #List_ λe λf λg (#List_ (g #List_ λh let {h h_2 h_3} = h; #List_ λi let {i i_2} = i; λj let {j j_2 j_3} = j; λk let {k k_2 k_3} = k; λl let {l l_2} = l; (If (j k h) (Cons k_2 (Merge j_2 l (Cons h_2 i))) (Cons h_3 (Merge j_3 (Cons k_3 l_2) i_2))) λ* λp λq (Cons p q)) f d e) λ* λs s) a c)
 
 (True) = #Bool λa #Bool λ* a
 
@@ -26,7 +26,7 @@ TaggedScott:
 (Nil) = #List_ λ* #List_ λb b
 
 Scott:
-(If) = λa λb λc (a λd λ* d λ* λh h b c)
+(If) = λa λb λc (a λd λ* d λ* λg g b c)
 
 (Pure) = λa (Cons a Nil)
 
@@ -38,7 +38,7 @@ Scott:
 
 (MergePair) = λa λb (b λc λd λe (d λf λg λh let {h h_2} = h; λi (Cons (Merge h i f) (MergePair h_2 g)) λ* λk (Cons k Nil) e c) λ* Nil a)
 
-(Merge) = λa λb λc (b λd λe λf λg (g λh let {h h_2 h_3} = h; λi let {i i_2} = i; λj let {j j_2 j_3} = j; λk let {k k_2 k_3} = k; λl let {l l_2} = l; (If (j k h) (Cons k_2 (Merge j_2 l (Cons h_2 i))) (Cons h_3 (Merge j_3 (Cons k_3 l_2) i_2))) λ* λp λq (Cons p q) f d e) λ* λt t a c)
+(Merge) = λa λb λc (b λd λe λf λg (g λh let {h h_2 h_3} = h; λi let {i i_2} = i; λj let {j j_2 j_3} = j; λk let {k k_2 k_3} = k; λl let {l l_2} = l; (If (j k h) (Cons k_2 (Merge j_2 l (Cons h_2 i))) (Cons h_3 (Merge j_3 (Cons k_3 l_2) i_2))) λ* λp λq (Cons p q) f d e) λ* λs s a c)
 
 (True) = λa λ* a
 

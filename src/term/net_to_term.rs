@@ -1,7 +1,7 @@
 use crate::{
   diagnostics::{DiagnosticOrigin, Diagnostics, Severity},
   net::{INet, NodeId, NodeKind::*, Port, SlotId, ROOT},
-  term::{num_to_name, term_to_net::Labels, Book, Name, Op, Pattern, Tag, Term},
+  term::{num_to_name, term_to_net::Labels, Book, Name, Op, Tag, Term},
 };
 use std::collections::{BTreeSet, HashMap, HashSet};
 
@@ -59,6 +59,7 @@ pub struct Reader<'a> {
   net: &'a INet,
   labels: &'a Labels,
   dup_paths: Option<HashMap<u32, Vec<SlotId>>>,
+  /// Store for floating/unscoped terms, like dups and let tups.
   scope: Scope,
   seen_fans: Scope,
   seen: HashSet<Port>,
@@ -102,7 +103,7 @@ impl Reader<'_> {
         Mat => match next.slot() {
           2 => {
             // Read the matched expression
-            let scrutinee = self.read_term(self.net.enter_port(Port(node, 0)));
+            let mut arg = self.read_term(self.net.enter_port(Port(node, 0)));
 
             // Read the pattern matching node
             let sel_node = self.net.enter_port(Port(node, 1)).node();
@@ -112,20 +113,38 @@ impl Reader<'_> {
             if *sel_kind != (Con { lab: None }) {
               // TODO: Is there any case where we expect a different node type here on readback?
               self.error(ReadbackError::InvalidNumericMatch);
-              Term::native_num_match(scrutinee, Term::Era, Term::Era, None)
+              Term::switch(arg, Term::Era, Term::Era, None)
             } else {
               let zero_term = self.read_term(self.net.enter_port(Port(sel_node, 1)));
               let mut succ_term = self.read_term(self.net.enter_port(Port(sel_node, 2)));
 
               match &mut succ_term {
                 Term::Lam { nam, bod, .. } => {
+                  // Extract non-var args so we can refer to the pred.
+                  let (arg, bind) = if let Term::Var { nam } = &mut arg {
+                    (std::mem::replace(nam, Name::from("")), None)
+                  } else {
+                    (self.namegen.unique(), Some(arg))
+                  };
+
                   let nam = std::mem::take(nam);
-                  let bod = std::mem::take(bod);
-                  Term::native_num_match(scrutinee, zero_term, *bod, Some(nam))
+                  let mut bod = std::mem::take(bod);
+
+                  // Rename the pred variable to indicate it's arg-1.
+                  if let Some(nam) = &nam {
+                    bod.subst(nam, &Term::Var { nam: Name::new(format!("{arg}-1")) });
+                  }
+
+                  let swt = Term::switch(Term::Var { nam: arg.clone() }, zero_term, *bod, nam);
+                  if let Some(bind) = bind {
+                    Term::Let { nam: Some(arg), val: Box::new(bind), nxt: Box::new(swt) }
+                  } else {
+                    swt
+                  }
                 }
                 _ => {
                   self.error(ReadbackError::InvalidNumericMatch);
-                  Term::native_num_match(scrutinee, zero_term, succ_term, None)
+                  Term::switch(arg, zero_term, succ_term, None)
                 }
               }
             }
@@ -322,48 +341,27 @@ impl Term {
   /// This has the effect of inserting the split at the lowest common ancestor
   /// of all of the uses of `fst` and `snd`.
   fn insert_split(&mut self, split: &mut Split, threshold: usize) -> Option<usize> {
-    let n = match self {
-      Term::Var { nam } => usize::from(split.fst.as_ref() == Some(nam) || split.snd.as_ref() == Some(nam)),
-      Term::Lam { bod, .. } | Term::Chn { bod, .. } => bod.insert_split(split, threshold)?,
-      Term::Let { val: fst, nxt: snd, .. }
-      | Term::App { fun: fst, arg: snd, .. }
-      | Term::Dup { val: fst, nxt: snd, .. }
-      | Term::Opx { fst, snd, .. } => {
-        fst.insert_split(split, threshold)? + snd.insert_split(split, threshold)?
-      }
-      Term::Use { .. } => unreachable!(),
-      Term::Sup { els, .. } | Term::Tup { els } => {
-        let mut n = 0;
-        for el in els {
-          n += el.insert_split(split, threshold)?;
-        }
-        n
-      }
-      Term::Mat { args, rules } => {
-        debug_assert_eq!(args.len(), 1);
-        let mut n = args[0].insert_split(split, threshold)?;
-        for rule in rules {
-          n += rule.body.insert_split(split, threshold)?;
-        }
-        n
-      }
-      Term::Nat { .. } | Term::Lst { .. } => unreachable!(),
-      Term::Lnk { .. } | Term::Num { .. } | Term::Str { .. } | Term::Ref { .. } | Term::Era | Term::Err => 0,
-    };
-
-    if n >= threshold {
-      let Split { tag, fst, snd, val } = std::mem::take(split);
-      let nxt = Box::new(std::mem::take(self));
-      *self = match tag {
-        None => {
-          Term::Let { pat: Pattern::Tup(vec![Pattern::Var(fst), Pattern::Var(snd)]), val: Box::new(val), nxt }
-        }
-        Some(tag) => Term::Dup { tag, bnd: vec![fst, snd], val: Box::new(val), nxt },
+    Term::recursive_call(move || {
+      let mut n = match self {
+        Term::Var { nam } => usize::from(split.fst.as_ref() == Some(nam) || split.snd.as_ref() == Some(nam)),
+        _ => 0,
       };
-      None
-    } else {
-      Some(n)
-    }
+      for child in self.children_mut() {
+        n += child.insert_split(split, threshold)?;
+      }
+
+      if n >= threshold {
+        let Split { tag, fst, snd, val } = std::mem::take(split);
+        let nxt = Box::new(std::mem::take(self));
+        *self = match tag {
+          None => Term::Ltp { bnd: vec![fst, snd], val: Box::new(val), nxt },
+          Some(tag) => Term::Dup { tag, bnd: vec![fst, snd], val: Box::new(val), nxt },
+        };
+        None
+      } else {
+        Some(n)
+      }
+    })
   }
 
   pub fn fix_names(&mut self, id_counter: &mut u64, book: &Book) {
@@ -376,11 +374,7 @@ impl Term {
       }
     }
 
-    match self {
-      Term::Lam { nam, bod, .. } => {
-        fix_name(nam, id_counter, bod);
-        bod.fix_names(id_counter, book);
-      }
+    Term::recursive_call(move || match self {
       Term::Ref { nam: def_name } => {
         if def_name.is_generated() {
           let def = book.defs.get(def_name).unwrap();
@@ -389,39 +383,15 @@ impl Term {
           *self = term;
         }
       }
-      Term::Dup { bnd, val, nxt, .. } => {
-        val.fix_names(id_counter, book);
-        for bnd in bnd {
-          fix_name(bnd, id_counter, nxt);
-        }
-        nxt.fix_names(id_counter, book);
-      }
-      Term::Chn { bod, .. } => bod.fix_names(id_counter, book),
-      Term::App { fun: fst, arg: snd, .. } | Term::Opx { op: _, fst, snd } => {
-        fst.fix_names(id_counter, book);
-        snd.fix_names(id_counter, book);
-      }
-      Term::Sup { els, .. } | Term::Tup { els } => {
-        for el in els {
-          el.fix_names(id_counter, book);
-        }
-      }
-      Term::Mat { args, rules } => {
-        for arg in args {
-          arg.fix_names(id_counter, book);
-        }
-
-        for rule in rules {
-          for nam in rule.pats.iter_mut().flat_map(|p| p.binds_mut()) {
-            fix_name(nam, id_counter, &mut rule.body);
+      _ => {
+        for (child, bnd) in self.children_mut_with_binds_mut() {
+          for bnd in bnd {
+            fix_name(bnd, id_counter, child);
+            child.fix_names(id_counter, book);
           }
-
-          rule.body.fix_names(id_counter, book);
         }
       }
-      Term::Let { .. } | Term::Use { .. } | Term::Nat { .. } | Term::Lst { .. } => unreachable!(),
-      Term::Var { .. } | Term::Lnk { .. } | Term::Num { .. } | Term::Str { .. } | Term::Era | Term::Err => {}
-    }
+    })
   }
 }
 

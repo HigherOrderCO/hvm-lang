@@ -1,16 +1,16 @@
-min1 *   0   = 0
-min1 0   *   = 0
-min1 1+a 1+b = (+ 1 (min1 a b))
+min1 * 0 = 0
+min1 0 * = 0
+min1 a b = (+ 1 (min1 (- a 1) (- b 1)))
 
-min2 0 * = 0
-min2 * 0 = 0
-min2 1+a 1+b = (+ (min2 a b) 1)
-
-min3 1+a 1+b = (+ (min3 a b) 1)
-min3 * * = 0
+min2 a b = switch a {
+  0: 0
+  _: switch b {
+    0: 0
+    _: (+ 1 (min2 a-1 b-1))
+  }
+}
 
 main = [
   [(min1 5 10) (min1 10 5) (min1 0 12) (min1 12 0) (min1 0 0) (min1 6 6)]
   [(min2 5 10) (min2 10 5) (min2 0 12) (min2 12 0) (min2 0 0) (min2 6 6)]
-  [(min3 5 10) (min3 10 5) (min3 0 12) (min3 12 0) (min3 0 0) (min3 6 6)]
 ]

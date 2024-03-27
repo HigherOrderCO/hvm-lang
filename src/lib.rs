@@ -66,55 +66,32 @@ pub fn desugar_book(
   let mut ctx = Ctx::new(book, diagnostics_cfg);
 
   ctx.check_shared_names();
+
   ctx.set_entrypoint();
+
+  ctx.book.encode_adts(opts.adt_encoding);
+
+  ctx.book.resolve_ctrs_in_pats();
+  ctx.check_unbound_ctr()?;
+  ctx.check_ctrs_arities()?;
+
   ctx.apply_args(args)?;
   ctx.book.apply_use();
 
-  ctx.book.encode_adts(opts.adt_encoding);
   ctx.book.encode_builtins();
 
-  ctx.book.resolve_ctrs_in_pats();
   ctx.resolve_refs()?;
-  ctx.check_repeated_binds();
 
-  ctx.check_match_arity()?;
-  ctx.check_unbound_pats()?;
+  ctx.fix_match_terms()?;
+  ctx.desugar_match_defs()?;
 
-  ctx.book.desugar_let_destructors();
-  ctx.book.desugar_implicit_match_binds();
-
-  ctx.check_ctrs_arities()?;
-  // Must be between [`Book::desugar_implicit_match_binds`] and [`Ctx::linearize_matches`]
   ctx.check_unbound_vars()?;
 
-  ctx.book.convert_match_def_to_term();
-
-  // TODO: We give variables fresh names before the match
-  // simplification to avoid `foo a a = a` binding to the wrong
-  // variable (it should be the second `a`). Ideally we'd like this
-  // pass to create the binds in the correct order, but to do that we
-  // have to reverse the order of the created let expressions when we
-  // have multiple consecutive var binds without a match in between,
-  // and I couldn't think of a simple way of doing that.
-  //
-  // In the paper this is not a problem because all var matches are
-  // pushed to the end, so it only needs to fix it in the irrefutable
-  // rule case. We could maybe do the opposite and do all var matches
-  // first, when it would also become easy to deal with. But this
-  // would potentially generate suboptimal lambda terms, need to think
-  // more about it.
-  //
-  // We technically still generate the let bindings in the wrong order
-  // but since lets can float between the binds it uses in its body
-  // and the places where its variable is used, this is not a problem.
-  ctx.book.make_var_names_unique();
-  ctx.simplify_matches()?;
-
   if opts.linearize_matches.enabled() {
-    ctx.book.linearize_simple_matches(opts.linearize_matches.is_extra());
+    ctx.book.linearize_matches(opts.linearize_matches.is_extra());
   }
 
-  ctx.book.encode_simple_matches(opts.adt_encoding);
+  ctx.book.encode_matches(opts.adt_encoding);
 
   // sanity check
   ctx.check_unbound_vars()?;

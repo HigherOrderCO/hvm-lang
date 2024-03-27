@@ -15,6 +15,7 @@
     "ctrs",
     "Dall",
     "datatypes",
+    "Deque",
     "desugared",
     "desugars",
     "dref",
@@ -83,6 +84,13 @@
     "walkdir",
     "wopts"
   ],
-  "files": ["**/*.rs", "**/*.md"],
-  "ignoreRegExpList": ["HexValues", "/λ/g", "/-O/g"]
+  "files": [
+    "**/*.rs",
+    "**/*.md"
+  ],
+  "ignoreRegExpList": [
+    "HexValues",
+    "/λ/g",
+    "/-O/g"
+  ]
 }

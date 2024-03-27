@@ -1,13 +1,13 @@
 data Maybe = None | (Some val)
 
-Foo = @$x match (Some 1) {
+Foo = @$x match x = (Some 1) {
   None: $x
-  (Some x): x
+  Some: x.val
 }
 
-Bar = (match (Some 1) {
+Bar = (match x = (Some 1) {
   None: $x
-  (Some x): x
+  Some: x.val
 } @$x *)
 
 main = *

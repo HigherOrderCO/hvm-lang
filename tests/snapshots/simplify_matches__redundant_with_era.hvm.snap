@@ -2,6 +2,6 @@
 source: tests/golden_tests.rs
 input_file: tests/golden_tests/simplify_matches/redundant_with_era.hvm
 ---
-(Fn2) = λa λb (match a { 0: λc match c { (*, f): match f { (*, h): h } }; 1+*: λj match j { (*, l): match l { (*, n): n } } } b)
+(Fn2) = λ%arg0 λ%arg1 (switch %arg0 { 0: λ%arg1 let (%arg1.0, %arg1.1) = %arg1; let (%arg1.1.0, %arg1.1.1) = %arg1.1; %arg1.1.1; _: λ%arg1 let (%arg1.0, %arg1.1) = %arg1; let (%arg1.1.0, %arg1.1.1) = %arg1.1; %arg1.1.1 } %arg1)
 
 (main) = *

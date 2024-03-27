@@ -1,8 +1,0 @@
-data Maybe = (Some val) | None
-
-main =
-  match (Some (Some 1)) {
-    (None): 0
-    (Some (None)): 0
-    (Some (Some v)): v
-  }

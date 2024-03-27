@@ -26,6 +26,9 @@ pub enum Token {
   #[token("match")]
   Match,
 
+  #[token("switch")]
+  Switch,
+
   #[token("=")]
   Equals,
 
@@ -270,6 +273,7 @@ impl fmt::Display for Token {
       Self::Let => write!(f, "let"),
       Self::Use => write!(f, "use"),
       Self::Match => write!(f, "match"),
+      Self::Switch => write!(f, "switch"),
       Self::Equals => write!(f, "="),
       Self::Num(num) => write!(f, "{num}"),
       Self::Str(s) => write!(f, "\"{s}\""),

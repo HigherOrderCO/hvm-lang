@@ -3,17 +3,17 @@ List.len.go [] count = count
 List.len.go (List.cons x xs) count = (List.len.go xs (+ count 1))
 
 Take.go n list =
-  match (== n 0) {
+  switch (== n 0) {
   | 0: (Take n list)
-  | 1+: []
+  | _: []
   }
 Take n [] = []
 Take n (List.cons x xs) = (List.cons x (Take.go (- n 1) xs))
 
 Drop.go n list =
-  match (== n 0) {
+  switch (== n 0) {
   | 0: (Drop n list)
-  | 1+: list
+  | _: list
   }
 Drop n [] = []
 Drop n (List.cons x xs) = (Drop.go (- n 1) xs)

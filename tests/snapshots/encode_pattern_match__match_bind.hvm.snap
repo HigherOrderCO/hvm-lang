@@ -3,11 +3,11 @@ source: tests/golden_tests.rs
 input_file: tests/golden_tests/encode_pattern_match/match_bind.hvm
 ---
 TaggedScott:
-(cheese) = let {a a_2} = (+ 2 3); (match a { 0: λ* 653323; 1+: λd λe (+ e d) } a_2)
+(cheese) = let {a a_2} = (+ 2 3); (switch a { 0: λ* 653323; _: λc λd (+ d c) } a_2)
 
 (main) = cheese
 
 Scott:
-(cheese) = let {a a_2} = (+ 2 3); (match a { 0: λ* 653323; 1+: λd λe (+ e d) } a_2)
+(cheese) = let {a a_2} = (+ 2 3); (switch a { 0: λ* 653323; _: λc λd (+ d c) } a_2)
 
 (main) = cheese

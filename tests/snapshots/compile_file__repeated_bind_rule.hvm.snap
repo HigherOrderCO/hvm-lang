@@ -4,7 +4,7 @@ input_file: tests/golden_tests/compile_file/repeated_bind_rule.hvm
 ---
 Warnings:
 In definition 'Foo':
-  Repeated bind inside rule pattern: 'a'.
+  Repeated bind in pattern matching rule: 'a'.
 
 @Foo = (* (a a))
 

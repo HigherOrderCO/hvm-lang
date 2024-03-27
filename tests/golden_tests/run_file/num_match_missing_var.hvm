@@ -1,21 +1,15 @@
 if 0 t f = f
 if 1 t f = t
 
-if2 n t f = match n {
+if2 n t f = switch n {
   0: f
-  1+: t
-  n: f
+  _: t
+  _: f
 }
 
-if3 n t f = match n {
+if3 n t f = switch n {
   0: f
-  *: t
-  1+: t
-}
-
-if4 n t f = match n {
-  0: f
-  1+: t
+  _: t
   1: t
 }
 

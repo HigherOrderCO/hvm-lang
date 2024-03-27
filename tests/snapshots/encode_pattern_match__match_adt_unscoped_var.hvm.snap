@@ -3,9 +3,9 @@ source: tests/golden_tests.rs
 input_file: tests/golden_tests/encode_pattern_match/match_adt_unscoped_var.hvm
 ---
 TaggedScott:
-(Foo) = λ$x #Maybe ((Some 1) $x #Maybe λc c)
+(Foo) = λ$x #Maybe ((Some 1) $x #Maybe λb b)
 
-(Bar) = (#Maybe ((Some 1) $x #Maybe λc c) λ$x *)
+(Bar) = (#Maybe ((Some 1) $x #Maybe λb b) λ$x *)
 
 (main) = *
 
@@ -14,9 +14,9 @@ TaggedScott:
 (Some) = λa #Maybe λ* #Maybe λc #Maybe (c a)
 
 Scott:
-(Foo) = λ$x (Some 1 $x λc c)
+(Foo) = λ$x (Some 1 $x λb b)
 
-(Bar) = (Some 1 $x λc c λ$x *)
+(Bar) = (Some 1 $x λb b λ$x *)
 
 (main) = *
 

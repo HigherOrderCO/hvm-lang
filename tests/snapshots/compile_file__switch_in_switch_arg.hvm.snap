@@ -1,0 +1,5 @@
+---
+source: tests/golden_tests.rs
+input_file: tests/golden_tests/compile_file/switch_in_switch_arg.hvm
+---
+@main = ({3 a ?<(#0 (b b)) ?<((* #0) (* (c c))) (a d)>>} d)

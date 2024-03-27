@@ -2,6 +2,6 @@
 source: tests/golden_tests.rs
 input_file: tests/golden_tests/simplify_matches/match_str.hvm
 ---
-(is_as) = λa match a { (String.cons b c): (match b { 65: λd match d { (String.cons f g): (match f { 115: λh match h { (String.cons * *): 0; (String.nil): 2 }; *: λ* 0 } g); (String.nil): 0 }; 97: λp match p { (String.cons r s): (match r { 115: λt match t { (String.cons * *): 0; (String.nil): 2 }; *: λ* 0 } s); (String.nil): 0 }; *: λ* 0 } c); (String.nil): 1 }
+(is_as) = λ%arg0 match %arg0 { String.cons: let %arg0.head%matched = (- %arg0.head 65); (switch %arg0.head%matched { 0: λ%arg0.tail match %arg0.tail { String.cons: let %arg0.tail.head%matched = (- %arg0.tail.head 115); (switch %arg0.tail.head%matched { 0: λ%arg0.tail.tail match %arg0.tail.tail { String.cons: 0; String.nil: 2 }; _: λ%arg0.tail.tail 0 } %arg0.tail.tail); String.nil: 0 }; _: λ%arg0.tail let %arg0.head%matched = (- %arg0.head%matched-1 31); (switch %arg0.head%matched { 0: λ%arg0.tail match %arg0.tail { String.cons: let %arg0.tail.head%matched = (- %arg0.tail.head 115); (switch %arg0.tail.head%matched { 0: λ%arg0.tail.tail match %arg0.tail.tail { String.cons: 0; String.nil: 2 }; _: λ%arg0.tail.tail 0 } %arg0.tail.tail); String.nil: 0 }; _: λ%arg0.tail 0 } %arg0.tail) } %arg0.tail); String.nil: 1 }
 
 (main) = *

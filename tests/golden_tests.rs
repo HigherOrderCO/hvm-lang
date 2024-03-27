@@ -92,6 +92,14 @@ fn run_golden_test_dir_multiple(test_name: &str, run: &[&RunFn]) {
   }
 }
 
+/* Snapshot/regression/golden tests
+
+ Each tests runs all the files in tests/golden_tests/<test name>.
+
+ The test functions decide how exactly to process the test programs
+ and what to save as a snapshot.
+*/
+
 #[test]
 fn compile_term() {
   run_golden_test_dir(function_name!(), &|code, _| {
@@ -147,6 +155,7 @@ fn linear_readback() {
     Ok(format!("{}{}", info.diagnostics, res))
   });
 }
+
 #[test]
 fn run_file() {
   run_golden_test_dir_multiple(function_name!(), &[
@@ -206,25 +215,22 @@ fn simplify_matches() {
     let diagnostics_cfg = DiagnosticsConfig::new(Severity::Error, true);
     let mut book = do_parse_book(code, path)?;
     let mut ctx = Ctx::new(&mut book, diagnostics_cfg);
+
     ctx.check_shared_names();
     ctx.set_entrypoint();
     ctx.book.encode_adts(AdtEncoding::TaggedScott);
-    ctx.book.encode_builtins();
     ctx.book.resolve_ctrs_in_pats();
-    ctx.resolve_refs()?;
-    ctx.check_match_arity()?;
-    ctx.check_unbound_pats()?;
-    ctx.book.convert_match_def_to_term();
-    ctx.book.desugar_let_destructors();
-    ctx.book.desugar_implicit_match_binds();
+    ctx.check_unbound_ctr()?;
     ctx.check_ctrs_arities()?;
+    ctx.book.encode_builtins();
+    ctx.resolve_refs()?;
+    ctx.fix_match_terms()?;
+    ctx.desugar_match_defs()?;
     ctx.check_unbound_vars()?;
-    ctx.simplify_matches()?;
-    ctx.book.linearize_simple_matches(true);
+    ctx.book.linearize_matches(true);
     ctx.check_unbound_vars()?;
-    ctx.book.make_var_names_unique();
-    ctx.book.linearize_vars();
     ctx.prune(false, AdtEncoding::TaggedScott);
+
     Ok(ctx.book.to_string())
   })
 }
@@ -242,25 +248,22 @@ fn encode_pattern_match() {
   run_golden_test_dir(function_name!(), &|code, path| {
     let mut result = String::new();
     for adt_encoding in [AdtEncoding::TaggedScott, AdtEncoding::Scott] {
-      let diagnostics_cfg = DiagnosticsConfig::new(Severity::Error, true);
+      let diagnostics_cfg = DiagnosticsConfig::new(Severity::Warning, true);
       let mut book = do_parse_book(code, path)?;
       let mut ctx = Ctx::new(&mut book, diagnostics_cfg);
       ctx.check_shared_names();
       ctx.set_entrypoint();
       ctx.book.encode_adts(adt_encoding);
-      ctx.book.encode_builtins();
       ctx.book.resolve_ctrs_in_pats();
-      ctx.resolve_refs()?;
-      ctx.check_match_arity()?;
-      ctx.check_unbound_pats()?;
-      ctx.book.convert_match_def_to_term();
-      ctx.book.desugar_let_destructors();
-      ctx.book.desugar_implicit_match_binds();
+      ctx.check_unbound_ctr()?;
       ctx.check_ctrs_arities()?;
+      ctx.book.encode_builtins();
+      ctx.resolve_refs()?;
+      ctx.fix_match_terms()?;
+      ctx.desugar_match_defs()?;
       ctx.check_unbound_vars()?;
-      ctx.simplify_matches()?;
-      ctx.book.linearize_simple_matches(true);
-      ctx.book.encode_simple_matches(adt_encoding);
+      ctx.book.linearize_matches(true);
+      ctx.book.encode_matches(adt_encoding);
       ctx.check_unbound_vars()?;
       ctx.book.make_var_names_unique();
       ctx.book.linearize_vars();

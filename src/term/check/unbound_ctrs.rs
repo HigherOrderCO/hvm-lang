@@ -1,6 +1,6 @@
 use crate::{
   diagnostics::{Diagnostics, ToStringVerbose},
-  term::{Ctx, Name, Pattern, Term},
+  term::{Ctx, Name, Pattern},
 };
 use std::collections::HashSet;
 
@@ -8,8 +8,9 @@ use std::collections::HashSet;
 pub struct UnboundCtrErr(Name);
 
 impl Ctx<'_> {
-  /// Check if the constructors in rule patterns or match patterns are defined.
-  pub fn check_unbound_pats(&mut self) -> Result<(), Diagnostics> {
+  /// Check if the constructors in rule patterns are defined.
+  /// Match terms are not checked since unbounds there are treated as vars.
+  pub fn check_unbound_ctr(&mut self) -> Result<(), Diagnostics> {
     self.info.start_pass();
 
     let is_ctr = |nam: &Name| self.book.ctrs.contains_key(nam);
@@ -19,9 +20,6 @@ impl Ctx<'_> {
           let res = pat.check_unbounds(&is_ctr);
           self.info.take_rule_err(res, def_name.clone());
         }
-
-        let res = rule.body.check_unbound_pats(&is_ctr);
-        self.info.take_rule_err(res, def_name.clone());
       }
     }
 
@@ -48,20 +46,6 @@ impl Pattern {
       check.extend(pat.children());
     }
     unbounds
-  }
-}
-
-impl Term {
-  pub fn check_unbound_pats(&self, is_ctr: &impl Fn(&Name) -> bool) -> Result<(), UnboundCtrErr> {
-    Term::recursive_call(move || {
-      for pat in self.patterns() {
-        pat.check_unbounds(is_ctr)?;
-      }
-      for child in self.children() {
-        child.check_unbound_pats(is_ctr)?;
-      }
-      Ok(())
-    })
   }
 }
 

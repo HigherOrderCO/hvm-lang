@@ -1,9 +1,7 @@
 use crate::{
-  diagnostics::{Diagnostics, ToStringVerbose},
-  term::{Ctx, Pattern, Term},
+  diagnostics::Diagnostics,
+  term::{Ctx, Pattern, Rule, Term},
 };
-
-struct PatternArgError(Pattern);
 
 impl Ctx<'_> {
   /// Applies the arguments to the program being run by applying them to the main function.
@@ -22,26 +20,35 @@ impl Ctx<'_> {
     if let Some(entrypoint) = &self.book.entrypoint {
       let main_def = &mut self.book.defs[entrypoint];
 
-      for pat in &main_def.rules[0].pats {
-        if !matches!(pat, Pattern::Var(Some(..))) {
-          self.info.add_rule_error(PatternArgError(pat.clone()), entrypoint.clone());
+      // Since we fatal error, no need to exit early
+      let n_rules = main_def.rules.len();
+      if n_rules != 1 {
+        self.info.add_rule_error(
+          format!("Expected the entrypoint function to have only one rule, found {n_rules}."),
+          entrypoint.clone(),
+        );
+      }
+
+      let mut main_body = std::mem::take(&mut main_def.rules[0].body);
+
+      for pat in main_def.rules[0].pats.iter().rev() {
+        if let Pattern::Var(var) = pat {
+          main_body = Term::lam(var.clone(), main_body);
+        } else {
+          self.info.add_rule_error(
+            format!("Expected the entrypoint function to only have variable patterns, found '{pat}'."),
+            entrypoint.clone(),
+          );
         }
       }
 
       if let Some(args) = args {
-        main_def.convert_match_def_to_term();
-        let main_body = &mut self.book.defs[entrypoint].rule_mut().body;
-
-        *main_body = Term::call(main_body.clone(), args);
+        main_body = Term::call(main_body, args);
       }
+
+      main_def.rules = vec![Rule { pats: vec![], body: main_body }];
     }
 
     self.info.fatal(())
-  }
-}
-
-impl ToStringVerbose for PatternArgError {
-  fn to_string_verbose(&self, _verbose: bool) -> String {
-    format!("Expected the entrypoint to only have variable pattern, found '{}'.", self.0)
   }
 }

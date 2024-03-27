@@ -4,17 +4,15 @@ input_file: tests/golden_tests/run_file/num_match_missing_var.hvm
 ---
 Lazy mode:
 Errors:
-In definition 'if':
-  Non-exhaustive pattern matching. Hint:
-    Case '+' not covered.
-In definition 'if4':
-  Expected a sequence of incrementing numbers ending with '1+', found '1'.
+In definition 'if2':
+  Extra arms in 'switch' expression. No rules should come after the default.
+In definition 'if3':
+  Extra arms in 'switch' expression. No rules should come after the default.
 
 
 Strict mode:
 Errors:
-In definition 'if':
-  Non-exhaustive pattern matching. Hint:
-    Case '+' not covered.
-In definition 'if4':
-  Expected a sequence of incrementing numbers ending with '1+', found '1'.
+In definition 'if2':
+  Extra arms in 'switch' expression. No rules should come after the default.
+In definition 'if3':
+  Extra arms in 'switch' expression. No rules should come after the default.

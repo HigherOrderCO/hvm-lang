@@ -1,7 +1,7 @@
 cheese =
-  match num = (+ 2 3) {
+  switch num = (+ 2 3) {
   | 0: 653323
-  | 1+: (+ num num-1)
+  | _: (+ num num-1)
   }
 
 main = cheese

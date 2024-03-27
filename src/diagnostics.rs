@@ -16,7 +16,9 @@ pub struct Diagnostics {
 #[derive(Debug, Clone, Copy)]
 pub struct DiagnosticsConfig {
   pub verbose: bool,
-  pub match_only_vars: Severity,
+  pub irrefutable_match: Severity,
+  pub redundant_match: Severity,
+  pub unreachable_match: Severity,
   pub unused_definition: Severity,
   pub repeated_bind: Severity,
   pub mutual_recursion_cycle: Severity,
@@ -49,7 +51,9 @@ pub enum Severity {
 
 #[derive(Debug, Clone, Copy)]
 pub enum WarningType {
-  MatchOnlyVars,
+  IrrefutableMatch,
+  RedundantMatch,
+  UnreachableMatch,
   UnusedDefinition,
   RepeatedBind,
   MutualRecursionCycle,
@@ -221,7 +225,9 @@ impl From<String> for Diagnostics {
 impl DiagnosticsConfig {
   pub fn new(severity: Severity, verbose: bool) -> Self {
     Self {
-      match_only_vars: severity,
+      irrefutable_match: severity,
+      redundant_match: severity,
+      unreachable_match: severity,
       unused_definition: severity,
       repeated_bind: severity,
       mutual_recursion_cycle: severity,
@@ -231,10 +237,12 @@ impl DiagnosticsConfig {
 
   pub fn warning_severity(&self, warn: WarningType) -> Severity {
     match warn {
-      WarningType::MatchOnlyVars => self.match_only_vars,
       WarningType::UnusedDefinition => self.unused_definition,
       WarningType::RepeatedBind => self.repeated_bind,
       WarningType::MutualRecursionCycle => self.mutual_recursion_cycle,
+      WarningType::IrrefutableMatch => self.irrefutable_match,
+      WarningType::RedundantMatch => self.redundant_match,
+      WarningType::UnreachableMatch => self.unreachable_match,
     }
   }
 }
@@ -254,5 +262,11 @@ impl Display for Diagnostic {
 impl ToStringVerbose for &str {
   fn to_string_verbose(&self, _verbose: bool) -> String {
     self.to_string()
+  }
+}
+
+impl ToStringVerbose for String {
+  fn to_string_verbose(&self, _verbose: bool) -> String {
+    self.clone()
   }
 }

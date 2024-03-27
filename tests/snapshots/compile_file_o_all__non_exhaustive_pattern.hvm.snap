@@ -4,5 +4,4 @@ input_file: tests/golden_tests/compile_file_o_all/non_exhaustive_pattern.hvm
 ---
 Errors:
 In definition 'Foo':
-  Non-exhaustive pattern matching. Hint:
-    Case 'A' not covered.
+  Non-exhaustive pattern matching rule. Constructor 'A' of type 'Type' not covered

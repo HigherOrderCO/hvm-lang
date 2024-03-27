@@ -1,4 +1,6 @@
-main = let k = #a{0 1}; match k {
+main =
+  let k = #a{0 1};
+  switch k {
     0: 1
-    1+p: (+ p 2)
-}
+    _: (+ k-1 2)
+  }

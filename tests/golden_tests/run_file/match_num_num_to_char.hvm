@@ -1,4 +1,4 @@
-num_to_char n = match n {
+num_to_char n = switch n {
   0: '0'
   1: '1'
   2: '2'
@@ -9,22 +9,20 @@ num_to_char n = match n {
   7: '7'
   8: '8'
   9: '9'
-  10+: '\0'
+  _: '\0'
 }
 
-char_to_num c = match c {
-  57: 9
-  56: 8
-  55: 7
-  54: 6
-  53: 5
-  52: 4
-  51: 3
-  50: 2
-  49: 1
-  48: 0
-  c : (- 0 1)
-}
+char_to_num '9' = 9
+char_to_num '8' = 8
+char_to_num '7' = 7
+char_to_num '6' = 6
+char_to_num '5' = 5
+char_to_num '4' = 4
+char_to_num '3' = 3
+char_to_num '2' = 2
+char_to_num '1' = 1
+char_to_num '0' = 0
+char_to_num  _  = (- 0 1)
 
 map f List.nil = List.nil
 map f (List.cons x xs) = (List.cons (f x) (map f xs))

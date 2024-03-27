@@ -2,6 +2,8 @@ data Maybe = (Some val) | None
 
 main = @maybe
   match maybe {
-    (None): 0
-    (Some (None)): 0
+    None: 0
+    Some: match maybe.val {
+      None: 0
+    }
   }

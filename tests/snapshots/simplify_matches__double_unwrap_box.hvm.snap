@@ -2,8 +2,8 @@
 source: tests/golden_tests.rs
 input_file: tests/golden_tests/simplify_matches/double_unwrap_box.hvm
 ---
-(DoubleUnbox) = λa λ* match a { (Box c): match c { (Box d): d } }
+(DoubleUnbox) = λ%arg0 λ%arg1 match %arg0 { Box: match %arg0.x { Box: %arg0.x.x } }
 
 (Main) = (DoubleUnbox (Box (Box 0)) 5)
 
-(Box) = λa #Boxed λb #Boxed (b a)
+(Box) = λx #Boxed λBox #Boxed (Box x)

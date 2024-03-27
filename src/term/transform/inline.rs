@@ -53,9 +53,9 @@ impl Term {
         Term::Chn { .. } | Term::Lnk { .. } => false,
         Term::Let { .. } => false,
         Term::App { .. } => false,
-        Term::Dup { .. } => false,
+        Term::Dup { .. } | Term::Ltp { .. } => false,
         Term::Opx { .. } => false,
-        Term::Mat { .. } => false,
+        Term::Mat { .. } | Term::Swt { .. } => false,
         Term::Ref { .. } => false,
 
         Term::Nat { .. } | Term::Str { .. } | Term::Lst { .. } | Term::Use { .. } => unreachable!(),

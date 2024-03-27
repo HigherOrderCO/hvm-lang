@@ -3,9 +3,9 @@ id cool-var-name = cool-var-name
 data Done_ = (Done done-var)
 
 toZero n =
-  match n {
+  switch n {
     0: (Done 1)
-    1+: (toZero n-1)
+    _: (toZero n-1)
   }
 
 main =

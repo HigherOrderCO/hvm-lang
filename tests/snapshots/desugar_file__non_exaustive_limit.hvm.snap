@@ -4,5 +4,4 @@ input_file: tests/golden_tests/desugar_file/non_exaustive_limit.hvm
 ---
 Errors:
 In definition 'Bar':
-  Non-exhaustive pattern matching. Hint:
-    Case 'B' not covered.
+  Non-exhaustive pattern matching rule. Constructor 'B' of type 'Foo' not covered

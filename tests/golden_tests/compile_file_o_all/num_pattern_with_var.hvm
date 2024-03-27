@@ -3,6 +3,6 @@ data bool = false | true
 
 (Foo false a) = 0
 (Foo true 0) = 0
-(Foo true 1+n) = n
+(Foo true n) = n
 
 Main = (Foo true 3)

@@ -1,9 +1,9 @@
 data Map = Free | Used | (Both a b)
 data Arr = Null | (Leaf x) | (Node a b)
 
-(Swap s a b) = match s {
+(Swap s a b) = switch s {
   0: (Both a b)
-  1+: (Both b a)
+  _: (Both b a)
 }
 
 // Sort : Arr -> Arr
@@ -74,9 +74,9 @@ data Arr = Null | (Leaf x) | (Node a b)
 
 // Gen : U60 -> Arr
 (Gen n) = (Gen.go n 0)
-  (Gen.go n x) = match n {
+  (Gen.go n x) = switch n {
     0: (Leaf x)
-    1+:
+    _:
       let x = (<< x 1)
       let y = (| x 1)
       (Node (Gen.go n-1 x) (Gen.go n-1 y))

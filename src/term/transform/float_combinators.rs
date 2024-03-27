@@ -151,7 +151,8 @@ impl Term {
       Term::Lam { .. } => self.float_lam(depth, term_info),
       Term::Chn { .. } => self.float_lam(depth, term_info),
       Term::App { .. } => self.float_app(depth, term_info),
-      Term::Mat { .. } => self.float_mat(depth, term_info),
+      Term::Mat { .. } => todo!(),
+      Term::Swt { .. } => self.float_swt(depth, term_info),
 
       Term::Var { nam } => {
         term_info.request_name(nam);
@@ -240,21 +241,14 @@ impl Term {
     detach
   }
 
-  fn float_mat(&mut self, depth: usize, term_info: &mut TermInfo) -> Detach {
-    let Term::Mat { args, rules } = self else { unreachable!() };
+  fn float_swt(&mut self, depth: usize, term_info: &mut TermInfo) -> Detach {
+    let Term::Swt { arg, rules } = self else { unreachable!() };
 
-    let mut detach = Detach::Combinator;
-    for arg in args {
-      detach = detach & arg.go_float(depth + 1, term_info);
-    }
+    let mut detach = arg.go_float(depth + 1, term_info);
     let parent_scope = term_info.replace_scope(BTreeSet::new());
 
-    for rule in rules.iter_mut() {
-      for pat in &rule.pats {
-        debug_assert!(pat.is_native_num_match());
-      }
-
-      let arm_detach = match rule.body.go_float(depth + 1, term_info) {
+    for (_, body) in rules.iter_mut() {
+      let arm_detach = match body.go_float(depth + 1, term_info) {
         // If the recursive ref reached here, it is not in a active position
         Detach::Recursive => Detach::Combinator,
         detach => detach,

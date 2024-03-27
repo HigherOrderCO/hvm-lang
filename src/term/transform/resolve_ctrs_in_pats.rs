@@ -1,4 +1,4 @@
-use crate::term::{Book, Name, Pattern, Term};
+use crate::term::{Book, Name, Pattern};
 
 impl Book {
   /// Resolve Constructor names inside rule patterns and match patterns,
@@ -15,7 +15,6 @@ impl Book {
         for pat in &mut rule.pats {
           pat.resolve_ctrs(&is_ctr);
         }
-        rule.body.resolve_ctrs_in_pats(&is_ctr);
       }
     }
   }
@@ -33,21 +32,6 @@ impl Pattern {
       }
 
       to_resolve.extend(pat.children_mut());
-    }
-  }
-}
-
-impl Term {
-  pub fn resolve_ctrs_in_pats(&mut self, is_ctr: &impl Fn(&Name) -> bool) {
-    let mut to_resolve = vec![self];
-
-    while let Some(term) = to_resolve.pop() {
-      for pat in term.patterns_mut() {
-        pat.resolve_ctrs(is_ctr);
-      }
-      for child in term.children_mut() {
-        to_resolve.push(child);
-      }
     }
   }
 }

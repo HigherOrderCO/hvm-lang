@@ -1,11 +1,13 @@
+use std::collections::VecDeque;
+
 use crate::{
   diagnostics::ToStringVerbose,
-  term::{Adt, AdtEncoding, Book, Name, Pattern, Rule, Tag, Term},
+  term::{Adt, AdtEncoding, Book, Name, Tag, Term},
 };
 
 pub enum AdtReadbackError {
-  InvalidAdt,
-  InvalidAdtMatch,
+  MalformedCtr(Name),
+  MalformedMatch(Name),
   UnexpectedTag(Tag, Tag),
 }
 
@@ -73,12 +75,13 @@ impl Term {
     let mut app = &mut *self;
     let mut current_arm = None;
 
+    // One lambda per ctr of this adt
     for ctr in &adt.ctrs {
       match app {
         Term::Lam { tag: Tag::Named(tag), nam, bod } if tag == adt_name => {
           if let Some(nam) = nam {
             if current_arm.is_some() {
-              errs.push(AdtReadbackError::InvalidAdt);
+              errs.push(AdtReadbackError::MalformedCtr(adt_name.clone()));
               return;
             }
             current_arm = Some((nam.clone(), ctr));
@@ -86,19 +89,20 @@ impl Term {
           app = bod;
         }
         _ => {
-          errs.push(AdtReadbackError::InvalidAdt);
+          errs.push(AdtReadbackError::MalformedCtr(adt_name.clone()));
           return;
         }
       }
     }
 
     let Some((arm_name, (ctr, ctr_args))) = current_arm else {
-      errs.push(AdtReadbackError::InvalidAdt);
+      errs.push(AdtReadbackError::MalformedCtr(adt_name.clone()));
       return;
     };
 
     let mut cur = &mut *app;
 
+    // One app per field of this constructor
     for _ in ctr_args.iter().rev() {
       let expected_tag = Tag::adt_name(adt_name);
 
@@ -113,7 +117,7 @@ impl Term {
           return;
         }
         _ => {
-          errs.push(AdtReadbackError::InvalidAdt);
+          errs.push(AdtReadbackError::MalformedCtr(adt_name.clone()));
           return;
         }
       }
@@ -122,7 +126,7 @@ impl Term {
     match cur {
       Term::Var { nam } if nam == &arm_name => {}
       _ => {
-        errs.push(AdtReadbackError::InvalidAdt);
+        errs.push(AdtReadbackError::MalformedCtr(adt_name.clone()));
         return;
       }
     }
@@ -140,7 +144,7 @@ impl Term {
   /// ```hvm
   /// data Option = (Some val) | None
   ///
-  /// // This match expression:
+  /// // Compiling this match expression:
   /// Option.and = @a @b match a {
   ///   Some: match b {
   ///     Some: 1
@@ -154,11 +158,11 @@ impl Term {
   ///
   /// // Which gets resugared as:
   /// λa λb (match a {
-  ///   (Some *): λc match c {
-  ///     (Some *): 1;
-  ///     (None)  : 2
+  ///   Some: λc match c {
+  ///     Some: 1;
+  ///     None: 2
   ///   };
-  ///   (None): λ* 3
+  ///   None: λ* 3
   /// } b)
   /// ```
   fn resugar_match_tagged_scott(
@@ -168,61 +172,119 @@ impl Term {
     adt: &Adt,
     errs: &mut Vec<AdtReadbackError>,
   ) {
-    let mut cur = &mut *self;
-    let mut arms = Vec::new();
+    // TODO: This is too complex, refactor this.
 
+    let mut cur = &mut *self;
+    let mut arms = VecDeque::new();
+    // Since we don't have access to the match arg when first reading
+    // the arms, we must store the position of the fields that have
+    // to be applied to the arm body.
+    let expected_tag = Tag::adt_name(adt_name);
+
+    // For each match arm, we expect an application where the arm body is the app arg.
+    // If matching a constructor with N fields, the body should start with N tagged lambdas.
     for (ctr, ctr_args) in adt.ctrs.iter().rev() {
       match cur {
         Term::App { tag: Tag::Named(tag), fun, arg } if tag == adt_name => {
-          let mut args = Vec::new();
+          // We expect a lambda for each field. If we got anything
+          // else, we have to create an eta-reducible match to get
+          // the same behaviour.
+          let mut has_all_fields = true;
+          let mut fields = Vec::new();
           let mut arm = arg.as_mut();
-
-          for field in ctr_args {
-            let expected_tag = Tag::adt_name(adt_name);
-
+          for _ in ctr_args.iter() {
             match arm {
               Term::Lam { tag, .. } if tag == &expected_tag => {
                 let Term::Lam { nam, bod, .. } = arm else { unreachable!() };
+                fields.push(nam.clone());
+                arm = bod;
+              }
 
-                args.push(nam.clone().map_or(Pattern::Var(None), |x| Pattern::Var(Some(x))));
-                arm = bod.as_mut();
+              Term::Lam { tag, .. } => {
+                errs.push(AdtReadbackError::UnexpectedTag(expected_tag.clone(), tag.clone()));
+                has_all_fields = false;
+                break;
               }
               _ => {
-                if let Term::Lam { tag, .. } = arm {
-                  errs.push(AdtReadbackError::UnexpectedTag(expected_tag.clone(), tag.clone()));
-                }
-
-                let arg = Name::new(format!("{ctr}.{field}"));
-                args.push(Pattern::Var(Some(arg.clone())));
-                *arm = Term::tagged_app(expected_tag, std::mem::take(arm), Term::Var { nam: arg });
+                has_all_fields = false;
+                break;
               }
             }
           }
 
-          arms.push((vec![Pattern::Ctr(ctr.clone(), args)], arm));
+          if has_all_fields {
+            arm.resugar_tagged_scott(book, errs);
+            arms.push_front((Some(ctr.clone()), fields, std::mem::take(arm)));
+          } else {
+            // If we didn't find lambdas for all the fields, create the eta-reducible match.
+            arg.resugar_tagged_scott(book, errs);
+            let fields = ctr_args.iter().map(|f| Name::new(format!("%{f}")));
+            let applied_arm = Term::tagged_call(
+              expected_tag.clone(),
+              std::mem::take(arg.as_mut()),
+              fields.clone().map(|f| Term::Var { nam: f }),
+            );
+            arms.push_front((Some(ctr.clone()), fields.map(Some).collect(), applied_arm));
+          }
+
           cur = &mut *fun;
         }
         _ => {
-          errs.push(AdtReadbackError::InvalidAdtMatch);
+          // Looked like a match but doesn't cover all constructors.
+          errs.push(AdtReadbackError::MalformedMatch(adt_name.clone()));
           return;
         }
       }
     }
 
-    let args = vec![std::mem::take(cur)];
-    let rules =
-      arms.into_iter().rev().map(|(pats, term)| Rule { pats, body: std::mem::take(term) }).collect();
-    *self = Term::Mat { args, rules };
+    // Resugar the argument.
+    cur.resugar_tagged_scott(book, errs);
 
-    self.resugar_tagged_scott(book, errs);
+    // If the match is on a non-var we have to extract it to get usable ctr fields.
+    // Here we get the arg name and separate the term if it's not a variable.
+    let (arg, bind) = if let Term::Var { nam } = cur {
+      (nam.clone(), None)
+    } else {
+      (Name::from("%matched"), Some(std::mem::take(cur)))
+    };
+
+    // Subst the unique readback names for the field names.
+    // ex: reading `@a(a @b@c(b c))` we create `@a match a{A: (a.field1 a.field2)}`,
+    // changing `b` to `a.field1` and `c` to `a.field2`.
+    for (ctr, fields, body) in arms.iter_mut() {
+      let mut new_fields = vec![];
+      for (field_idx, field) in fields.iter().enumerate() {
+        if let Some(old_field) = field {
+          let field_name = &adt.ctrs[ctr.as_ref().unwrap()][field_idx];
+          let new_field = Name::new(format!("{arg}.{field_name}"));
+          new_fields.push(Some(new_field.clone()));
+          body.subst(old_field, &Term::Var { nam: new_field });
+        }
+      }
+      *fields = new_fields;
+    }
+
+    let arms = arms.into_iter().collect::<Vec<_>>();
+
+    *self = if let Some(bind) = bind {
+      Term::Let {
+        nam: Some(arg.clone()),
+        val: Box::new(bind),
+        nxt: Box::new(Term::Mat { arg: Box::new(Term::Var { nam: arg }), rules: arms }),
+      }
+    } else {
+      Term::Mat { arg: Box::new(Term::Var { nam: arg }), rules: arms }
+    };
   }
 }
 
 impl ToStringVerbose for AdtReadbackError {
   fn to_string_verbose(&self, _verbose: bool) -> String {
     match self {
-      AdtReadbackError::InvalidAdt => "Invalid Adt.".to_string(),
-      AdtReadbackError::InvalidAdtMatch => "Invalid Adt Match.".to_string(),
+      AdtReadbackError::MalformedCtr(adt) => format!("Encountered malformed constructor of type '{adt}'."),
+      AdtReadbackError::MalformedMatch(adt) => {
+        format!("Encountered malformed 'match' expression of type '{adt}'")
+      }
       AdtReadbackError::UnexpectedTag(expected, found) => {
         let found = if let Tag::Static = found { "no tag".to_string() } else { format!("'{found}'") };
         format!("Unexpected tag found during Adt readback, expected '{}', but found {}.", expected, found)

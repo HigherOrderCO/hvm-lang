@@ -2,10 +2,10 @@
 source: tests/golden_tests.rs
 input_file: tests/golden_tests/simplify_matches/flatten_with_terminal.hvm
 ---
-(Foo) = λa λb (match a { 0: λc match c { (A e): match e { (B): B } }; *: λ* * } b)
+(Foo) = λ%arg0 λ%arg1 (switch %arg0 { 0: λ%arg1 match %arg1 { A: match %arg1.b { B: B } }; _: λ%arg1 * } %arg1)
 
 (main) = (Foo 2 (A B))
 
-(A) = λa #A_t λb #A_t (b a)
+(B) = #B_t λB B
 
-(B) = #B_t λa a
+(A) = λb #A_t λA #A_t (A b)

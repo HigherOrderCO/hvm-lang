@@ -5,12 +5,10 @@ input_file: tests/golden_tests/run_file/def_bool_num.hvm
 Lazy mode:
 Errors:
 In definition 'go':
-  Non-exhaustive pattern matching. Hint:
-    Case '+' not covered.
+  Non-exhaustive pattern matching rule. Default case of number type not covered.
 
 
 Strict mode:
 Errors:
 In definition 'go':
-  Non-exhaustive pattern matching. Hint:
-    Case '+' not covered.
+  Non-exhaustive pattern matching rule. Default case of number type not covered.

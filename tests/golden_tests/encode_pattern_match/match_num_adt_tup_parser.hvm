@@ -9,7 +9,7 @@ Parse state xs = (Err (xs, state))
 main =
   let str = "(+";
   let state = *;
-  match (Parse state str) {
-    (Ok (val, xs, state)): (val, (Parse state xs))
+  match res = (Parse state str) {
+    Ok: let (val, xs, state) = res.val; (val, (Parse state xs))
     err: err
   }

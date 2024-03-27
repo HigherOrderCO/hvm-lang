@@ -2,9 +2,9 @@ data Tree = (Leaf a) | (Both a b)
 data Error = Err
 
 // Atomic Swapper
-(Swap n a b) = match n {
+(Swap n a b) = switch n {
   0: (Both a b)
-  1+: (Both b a)
+  _: (Both b a)
 }
 
 // Swaps distant values in parallel; corresponds to a Red Box
@@ -29,9 +29,9 @@ data Error = Err
 (Sort s (Both a b)) = (Flow s (Both (Sort 0 a) (Sort 1 b)))
 
 // Generates a tree of depth `n`
-(Gen n x) = match n {
+(Gen n x) = switch n {
   0: (Leaf x)
-  1+: (Both (Gen n-1 (* x 2)) (Gen n-1 (+ (* x 2) 1)))
+  _: (Both (Gen n-1 (* x 2)) (Gen n-1 (+ (* x 2) 1)))
 }
 
 // Reverses a tree

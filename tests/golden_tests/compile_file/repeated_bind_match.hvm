@@ -1,4 +1,0 @@
-main = @a match a {
- (List.cons x x): x
- (List.nil)     : *
-}

@@ -2,8 +2,8 @@
 source: tests/golden_tests.rs
 input_file: tests/golden_tests/simplify_matches/nested2.hvm
 ---
-(Foo) = λa λb (match b { (List.cons c d): λe (match d { (List.cons f g): λh λi (h i f g); (List.nil): λj λk (j (List.cons k List.nil)) } e c); (List.nil): λm (m List.nil) } a)
+(Foo) = λ%arg0 λ%arg1 (match %arg1 { List.cons: λ%arg0 (match %arg1.tail { List.cons: λ%arg0 λ%arg1.head (%arg0 %arg1.head %arg1.tail.head %arg1.tail.tail); List.nil: λ%arg0 λ%arg1.head (%arg0 (List.cons %arg1.head List.nil)) } %arg0 %arg1.head); List.nil: λ%arg0 (%arg0 List.nil) } %arg0)
 
-(List.cons) = λa λb #List λc #List λ* #List (c a b)
+(List.nil) = #List λList.cons #List λList.nil List.nil
 
-(List.nil) = #List λ* #List λb b
+(List.cons) = λhead λtail #List λList.cons #List λList.nil #List (List.cons head tail)

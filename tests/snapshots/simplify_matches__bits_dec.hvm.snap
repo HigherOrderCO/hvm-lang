@@ -2,10 +2,10 @@
 source: tests/golden_tests.rs
 input_file: tests/golden_tests/simplify_matches/bits_dec.hvm
 ---
-(Data.Bits.dec) = λa match a { (Data.Bits.e): Data.Bits.e; (Data.Bits.o c): match c { (Data.Bits.e): Data.Bits.e; (Data.Bits.o e): (Data.Bits.i (Data.Bits.dec e)); (Data.Bits.i f): (Data.Bits.i (Data.Bits.dec f)) }; (Data.Bits.i g): match g { (Data.Bits.e): (Data.Bits.o Data.Bits.e); (Data.Bits.o i): (Data.Bits.o i); (Data.Bits.i j): (Data.Bits.o j) } }
+(Data.Bits.dec) = λ%arg0 match %arg0 { Data.Bits.e: Data.Bits.e; Data.Bits.o: match %arg0.t { Data.Bits.e: Data.Bits.e; Data.Bits.o: (Data.Bits.i (Data.Bits.dec %arg0.t.t)); Data.Bits.i: (Data.Bits.i (Data.Bits.dec %arg0.t.t)) }; Data.Bits.i: match %arg0.t { Data.Bits.e: (Data.Bits.o Data.Bits.e); Data.Bits.o: (Data.Bits.o %arg0.t.t); Data.Bits.i: (Data.Bits.o %arg0.t.t) } }
 
-(Data.Bits.e) = #Data.Bits λa #Data.Bits λ* #Data.Bits λ* a
+(Data.Bits.i) = λt #Data.Bits λData.Bits.e #Data.Bits λData.Bits.o #Data.Bits λData.Bits.i #Data.Bits (Data.Bits.i t)
 
-(Data.Bits.o) = λa #Data.Bits λ* #Data.Bits λc #Data.Bits λ* #Data.Bits (c a)
+(Data.Bits.o) = λt #Data.Bits λData.Bits.e #Data.Bits λData.Bits.o #Data.Bits λData.Bits.i #Data.Bits (Data.Bits.o t)
 
-(Data.Bits.i) = λa #Data.Bits λ* #Data.Bits λ* #Data.Bits λd #Data.Bits (d a)
+(Data.Bits.e) = #Data.Bits λData.Bits.e #Data.Bits λData.Bits.o #Data.Bits λData.Bits.i Data.Bits.e

@@ -1,4 +1,4 @@
-use self::{check::type_check::infer_match_arg_type, parser::lexer::STRINGS};
+use self::parser::lexer::STRINGS;
 use crate::{
   diagnostics::{Diagnostics, DiagnosticsConfig},
   term::builtins::*,
@@ -7,11 +7,7 @@ use crate::{
 use indexmap::{IndexMap, IndexSet};
 use interner::global::GlobalString;
 use itertools::Itertools;
-use std::{
-  borrow::Cow,
-  collections::{HashMap, HashSet},
-  ops::Deref,
-};
+use std::{borrow::Cow, collections::HashMap, ops::Deref};
 
 pub mod builtins;
 pub mod check;
@@ -92,7 +88,7 @@ pub enum Term {
     nam: Name,
   },
   Let {
-    pat: Pattern,
+    nam: Option<Name>,
     val: Box<Term>,
     nxt: Box<Term>,
   },
@@ -105,6 +101,12 @@ pub enum Term {
     tag: Tag,
     fun: Box<Term>,
     arg: Box<Term>,
+  },
+  /// "let tup" tuple destructor
+  Ltp {
+    bnd: Vec<Option<Name>>,
+    val: Box<Term>,
+    nxt: Box<Term>,
   },
   Tup {
     els: Vec<Term>,
@@ -137,9 +139,15 @@ pub enum Term {
     fst: Box<Term>,
     snd: Box<Term>,
   },
+  /// Pattern matching on an ADT.
   Mat {
-    args: Vec<Term>,
-    rules: Vec<Rule>,
+    arg: Box<Term>,
+    rules: Vec<(Option<Name>, Vec<Option<Name>>, Term)>,
+  },
+  /// Native pattern matching on numbers
+  Swt {
+    arg: Box<Term>,
+    rules: Vec<(NumCtr, Term)>,
   },
   Ref {
     nam: Name,
@@ -153,16 +161,16 @@ pub enum Term {
 pub enum Pattern {
   Var(Option<Name>),
   Ctr(Name, Vec<Pattern>),
-  Num(NumCtr),
+  Num(u64),
   Tup(Vec<Pattern>),
   Lst(Vec<Pattern>),
   Str(GlobalString),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum NumCtr {
   Num(u64),
-  Succ(u64, Option<Option<Name>>),
+  Succ(Option<Name>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -191,21 +199,6 @@ pub enum Op {
   Xor,
   Shl,
   Shr,
-}
-
-/// Pattern types.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Type {
-  /// Variables/wildcards.
-  Any,
-  /// A native tuple.
-  Tup(usize),
-  /// A sequence of arbitrary numbers ending in a variable.
-  Num,
-  /// A strictly incrementing sequence of numbers starting from 0, ending in a + ctr.
-  NumSucc(u64),
-  /// Adt constructors declared with the `data` syntax.
-  Adt(Name),
 }
 
 /// A user defined datatype
@@ -272,6 +265,12 @@ impl PartialEq<str> for Name {
   }
 }
 
+impl PartialEq<&str> for Name {
+  fn eq(&self, other: &&str) -> bool {
+    self == other
+  }
+}
+
 impl PartialEq<Option<Name>> for Name {
   fn eq(&self, other: &Option<Name>) -> bool {
     if let Some(other) = other.as_ref() { self == other } else { false }
@@ -310,9 +309,10 @@ impl Clone for Term {
       Self::Var { nam } => Self::Var { nam: nam.clone() },
       Self::Chn { tag, nam, bod } => Self::Chn { tag: tag.clone(), nam: nam.clone(), bod: bod.clone() },
       Self::Lnk { nam } => Self::Lnk { nam: nam.clone() },
-      Self::Let { pat, val, nxt } => Self::Let { pat: pat.clone(), val: val.clone(), nxt: nxt.clone() },
+      Self::Let { nam, val, nxt } => Self::Let { nam: nam.clone(), val: val.clone(), nxt: nxt.clone() },
       Self::Use { nam, val, nxt } => Self::Use { nam: nam.clone(), val: val.clone(), nxt: nxt.clone() },
       Self::App { tag, fun, arg } => Self::App { tag: tag.clone(), fun: fun.clone(), arg: arg.clone() },
+      Self::Ltp { bnd, val, nxt } => Self::Ltp { bnd: bnd.clone(), val: val.clone(), nxt: nxt.clone() },
       Self::Tup { els } => Self::Tup { els: els.clone() },
       Self::Dup { tag, bnd, val, nxt } => {
         Self::Dup { tag: tag.clone(), bnd: bnd.clone(), val: val.clone(), nxt: nxt.clone() }
@@ -323,7 +323,8 @@ impl Clone for Term {
       Self::Str { val } => Self::Str { val: val.clone() },
       Self::Lst { els } => Self::Lst { els: els.clone() },
       Self::Opx { op, fst, snd } => Self::Opx { op: *op, fst: fst.clone(), snd: snd.clone() },
-      Self::Mat { args, rules } => Self::Mat { args: args.clone(), rules: rules.clone() },
+      Self::Mat { arg, rules } => Self::Mat { arg: arg.clone(), rules: rules.clone() },
+      Self::Swt { arg, rules } => Self::Swt { arg: arg.clone(), rules: rules.clone() },
       Self::Ref { nam } => Self::Ref { nam: nam.clone() },
       Self::Era => Self::Era,
       Self::Err => Self::Err,
@@ -347,12 +348,15 @@ impl Drop for Term {
             stack.push(std::mem::take(fst.as_mut()));
             stack.push(std::mem::take(snd.as_mut()));
           }
-          Term::Mat { args, rules } => {
-            for arg in std::mem::take(args).into_iter() {
-              stack.push(arg);
+          Term::Mat { arg, rules } => {
+            stack.push(std::mem::take(arg));
+            for (_ctr, _fields, body) in std::mem::take(rules).into_iter() {
+              stack.push(body);
             }
-
-            for Rule { body, .. } in std::mem::take(rules).into_iter() {
+          }
+          Term::Swt { arg, rules } => {
+            stack.push(std::mem::take(arg));
+            for (_nam, body) in std::mem::take(rules).into_iter() {
               stack.push(body);
             }
           }
@@ -431,10 +435,10 @@ impl Term {
     Term::Str { val: STRINGS.get(str) }
   }
 
-  pub fn native_num_match(arg: Term, zero: Term, succ: Term, succ_var: Option<Option<Name>>) -> Term {
-    let zero = Rule { pats: vec![Pattern::Num(NumCtr::Num(0))], body: zero };
-    let succ = Rule { pats: vec![Pattern::Num(NumCtr::Succ(1, succ_var))], body: succ };
-    Term::Mat { args: vec![arg], rules: vec![zero, succ] }
+  pub fn switch(arg: Term, zero: Term, succ: Term, succ_var: Option<Name>) -> Term {
+    let zero = (NumCtr::Num(0), zero);
+    let succ = (NumCtr::Succ(succ_var), succ);
+    Term::Swt { arg: Box::new(arg), rules: vec![zero, succ] }
   }
 
   pub fn sub_num(arg: Term, val: u64) -> Term {
@@ -455,13 +459,19 @@ impl Term {
 
   /* Iterators */
   pub fn children(&self) -> impl DoubleEndedIterator<Item = &Term> + Clone {
-    multi_iterator!(ChildrenIter { Zero, One, Two, Vec, Mat });
+    multi_iterator!(ChildrenIter { Zero, One, Two, Vec, Mat, Swt });
     match self {
-      Term::Mat { args, rules } => ChildrenIter::Mat(args.iter().chain(rules.iter().map(|r| &r.body))),
+      Term::Mat { arg, rules } => {
+        ChildrenIter::Mat([arg.as_ref()].into_iter().chain(rules.iter().map(|r| &r.2)))
+      }
+      Term::Swt { arg, rules } => {
+        ChildrenIter::Swt([arg.as_ref()].into_iter().chain(rules.iter().map(|r| &r.1)))
+      }
       Term::Tup { els } | Term::Sup { els, .. } | Term::Lst { els } => ChildrenIter::Vec(els),
       Term::Let { val: fst, nxt: snd, .. }
       | Term::Use { val: fst, nxt: snd, .. }
       | Term::App { fun: fst, arg: snd, .. }
+      | Term::Ltp { val: fst, nxt: snd, .. }
       | Term::Dup { val: fst, nxt: snd, .. }
       | Term::Opx { fst, snd, .. } => ChildrenIter::Two([fst.as_ref(), snd.as_ref()]),
       Term::Lam { bod, .. } | Term::Chn { bod, .. } => ChildrenIter::One([bod.as_ref()]),
@@ -477,15 +487,19 @@ impl Term {
   }
 
   pub fn children_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut Term> {
-    multi_iterator!(ChildrenIter { Zero, One, Two, Vec, Mat });
+    multi_iterator!(ChildrenIter { Zero, One, Two, Vec, Mat, Swt });
     match self {
-      Term::Mat { args, rules } => {
-        ChildrenIter::Mat(args.iter_mut().chain(rules.iter_mut().map(|r| &mut r.body)))
+      Term::Mat { arg, rules } => {
+        ChildrenIter::Mat([arg.as_mut()].into_iter().chain(rules.iter_mut().map(|r| &mut r.2)))
+      }
+      Term::Swt { arg, rules } => {
+        ChildrenIter::Swt([arg.as_mut()].into_iter().chain(rules.iter_mut().map(|r| &mut r.1)))
       }
       Term::Tup { els } | Term::Sup { els, .. } | Term::Lst { els } => ChildrenIter::Vec(els),
       Term::Let { val: fst, nxt: snd, .. }
       | Term::Use { val: fst, nxt: snd, .. }
       | Term::App { fun: fst, arg: snd, .. }
+      | Term::Ltp { val: fst, nxt: snd, .. }
       | Term::Dup { val: fst, nxt: snd, .. }
       | Term::Opx { fst, snd, .. } => ChildrenIter::Two([fst.as_mut(), snd.as_mut()]),
       Term::Lam { bod, .. } | Term::Chn { bod, .. } => ChildrenIter::One([bod.as_mut()]),
@@ -510,23 +524,30 @@ impl Term {
     &self,
   ) -> impl DoubleEndedIterator<Item = (&Term, impl DoubleEndedIterator<Item = &Option<Name>> + Clone)> + Clone
   {
-    multi_iterator!(ChildrenIter { Zero, One, Two, Vec, Mat });
-    multi_iterator!(BindsIter { Zero, One, Dup, Pat, Rule });
+    multi_iterator!(ChildrenIter { Zero, One, Two, Vec, Mat, Swt });
+    multi_iterator!(BindsIter { Zero, One, Dup, Mat });
     match self {
-      Term::Mat { args, rules } => ChildrenIter::Mat(
-        args
-          .iter()
-          .map(|arg| (arg, BindsIter::Zero([])))
-          .chain(rules.iter().map(|r| (&r.body, BindsIter::Rule(r.pats.iter().flat_map(|p| p.binds()))))),
+      Term::Mat { arg, rules } => ChildrenIter::Mat(
+        [(arg.as_ref(), BindsIter::Zero([]))]
+          .into_iter()
+          .chain(rules.iter().map(|r| (&r.2, BindsIter::Mat(r.1.iter())))),
       ),
+      Term::Swt { arg, rules } => {
+        ChildrenIter::Swt([(arg.as_ref(), BindsIter::Zero([]))].into_iter().chain(rules.iter().map(|r| {
+          match &r.0 {
+            NumCtr::Num(_) => (&r.1, BindsIter::Zero([])),
+            NumCtr::Succ(nam) => (&r.1, BindsIter::One([nam])),
+          }
+        })))
+      }
       Term::Tup { els } | Term::Sup { els, .. } | Term::Lst { els } => {
         ChildrenIter::Vec(els.iter().map(|el| (el, BindsIter::Zero([]))))
       }
-      Term::Let { pat, val, nxt, .. } => {
-        ChildrenIter::Two([(val.as_ref(), BindsIter::Zero([])), (nxt.as_ref(), BindsIter::Pat(pat.binds()))])
+      Term::Let { nam, val, nxt, .. } => {
+        ChildrenIter::Two([(val.as_ref(), BindsIter::Zero([])), (nxt.as_ref(), BindsIter::One([nam]))])
       }
-      Term::Use { .. } => ChildrenIter::Zero([]),
-      Term::Dup { bnd, val, nxt, .. } => {
+      Term::Use { .. } => todo!(),
+      Term::Ltp { bnd, val, nxt, .. } | Term::Dup { bnd, val, nxt, .. } => {
         ChildrenIter::Two([(val.as_ref(), BindsIter::Zero([])), (nxt.as_ref(), BindsIter::Dup(bnd))])
       }
       Term::App { fun: fst, arg: snd, .. } | Term::Opx { fst, snd, .. } => {
@@ -549,22 +570,28 @@ impl Term {
     &mut self,
   ) -> impl DoubleEndedIterator<Item = (&mut Term, impl DoubleEndedIterator<Item = &Option<Name>> + Clone)>
   {
-    multi_iterator!(ChildrenIter { Zero, One, Two, Vec, Mat });
-    multi_iterator!(BindsIter { Zero, One, Dup, Pat, Rule });
+    multi_iterator!(ChildrenIter { Zero, One, Two, Vec, Mat, Swt });
+    multi_iterator!(BindsIter { Zero, One, Dup, Mat });
     match self {
-      Term::Mat { args, rules } => {
-        ChildrenIter::Mat(args.iter_mut().map(|arg| (arg, BindsIter::Zero([]))).chain(
-          rules.iter_mut().map(|r| (&mut r.body, BindsIter::Rule(r.pats.iter().flat_map(|p| p.binds())))),
-        ))
-      }
+      Term::Mat { arg, rules } => ChildrenIter::Mat(
+        [(arg.as_mut(), BindsIter::Zero([]))]
+          .into_iter()
+          .chain(rules.iter_mut().map(|r| (&mut r.2, BindsIter::Mat(r.1.iter())))),
+      ),
+      Term::Swt { arg, rules } => ChildrenIter::Swt([(arg.as_mut(), BindsIter::Zero([]))].into_iter().chain(
+        rules.iter_mut().map(|r| match &r.0 {
+          NumCtr::Num(_) => (&mut r.1, BindsIter::Zero([])),
+          NumCtr::Succ(nam) => (&mut r.1, BindsIter::One([nam])),
+        }),
+      )),
       Term::Tup { els } | Term::Sup { els, .. } | Term::Lst { els } => {
         ChildrenIter::Vec(els.iter_mut().map(|el| (el, BindsIter::Zero([]))))
       }
-      Term::Let { pat, val, nxt, .. } => {
-        ChildrenIter::Two([(val.as_mut(), BindsIter::Zero([])), (nxt.as_mut(), BindsIter::Pat(pat.binds()))])
+      Term::Let { nam, val, nxt, .. } => {
+        ChildrenIter::Two([(val.as_mut(), BindsIter::Zero([])), (nxt.as_mut(), BindsIter::One([&*nam]))])
       }
-      Term::Use { .. } => ChildrenIter::Zero([]),
-      Term::Dup { bnd, val, nxt, .. } => {
+      Term::Use { .. } => todo!(),
+      Term::Ltp { bnd, val, nxt, .. } | Term::Dup { bnd, val, nxt, .. } => {
         ChildrenIter::Two([(val.as_mut(), BindsIter::Zero([])), (nxt.as_mut(), BindsIter::Dup(bnd.iter()))])
       }
       Term::App { fun: fst, arg: snd, .. } | Term::Opx { fst, snd, .. } => {
@@ -586,25 +613,28 @@ impl Term {
   pub fn children_mut_with_binds_mut(
     &mut self,
   ) -> impl DoubleEndedIterator<Item = (&mut Term, impl DoubleEndedIterator<Item = &mut Option<Name>>)> {
-    multi_iterator!(ChildrenIter { Zero, One, Two, Vec, Mat });
-    multi_iterator!(BindsIter { Zero, One, Dup, Pat, Rule });
+    multi_iterator!(ChildrenIter { Zero, One, Two, Vec, Mat, Swt });
+    multi_iterator!(BindsIter { Zero, One, Dup, Mat });
     match self {
-      Term::Mat { args, rules } => ChildrenIter::Mat(
-        args.iter_mut().map(|arg| (arg, BindsIter::Zero([]))).chain(
-          rules
-            .iter_mut()
-            .map(|r| (&mut r.body, BindsIter::Rule(r.pats.iter_mut().flat_map(|p| p.binds_mut())))),
-        ),
+      Term::Mat { arg, rules } => ChildrenIter::Mat(
+        [(arg.as_mut(), BindsIter::Zero([]))]
+          .into_iter()
+          .chain(rules.iter_mut().map(|r| (&mut r.2, BindsIter::Mat(r.1.iter_mut())))),
       ),
+      Term::Swt { arg, rules } => ChildrenIter::Swt([(arg.as_mut(), BindsIter::Zero([]))].into_iter().chain(
+        rules.iter_mut().map(|r| match &mut r.0 {
+          NumCtr::Num(_) => (&mut r.1, BindsIter::Zero([])),
+          NumCtr::Succ(nam) => (&mut r.1, BindsIter::One([nam])),
+        }),
+      )),
       Term::Tup { els } | Term::Sup { els, .. } | Term::Lst { els } => {
         ChildrenIter::Vec(els.iter_mut().map(|el| (el, BindsIter::Zero([]))))
       }
-      Term::Let { pat, val, nxt, .. } => ChildrenIter::Two([
-        (val.as_mut(), BindsIter::Zero([])),
-        (nxt.as_mut(), BindsIter::Pat(pat.binds_mut())),
-      ]),
-      Term::Use { .. } => ChildrenIter::Zero([]),
-      Term::Dup { bnd, val, nxt, .. } => {
+      Term::Use { .. } => todo!(),
+      Term::Let { nam, val, nxt, .. } => {
+        ChildrenIter::Two([(val.as_mut(), BindsIter::Zero([])), (nxt.as_mut(), BindsIter::One([nam]))])
+      }
+      Term::Ltp { bnd, val, nxt, .. } | Term::Dup { bnd, val, nxt, .. } => {
         ChildrenIter::Two([(val.as_mut(), BindsIter::Zero([])), (nxt.as_mut(), BindsIter::Dup(bnd))])
       }
       Term::App { fun: fst, arg: snd, .. } | Term::Opx { fst, snd, .. } => {
@@ -623,56 +653,6 @@ impl Term {
     }
   }
 
-  pub fn patterns(&self) -> impl DoubleEndedIterator<Item = &Pattern> + Clone {
-    multi_iterator!(PatternsIter { Zero, Let, Mat });
-    match self {
-      Term::Mat { rules, .. } => PatternsIter::Mat(rules.iter().flat_map(|r| r.pats.iter())),
-      Term::Let { pat, .. } => PatternsIter::Let([pat]),
-      Term::Tup { .. }
-      | Term::Sup { .. }
-      | Term::Lst { .. }
-      | Term::Dup { .. }
-      | Term::Use { .. }
-      | Term::App { .. }
-      | Term::Opx { .. }
-      | Term::Lam { .. }
-      | Term::Chn { .. }
-      | Term::Var { .. }
-      | Term::Lnk { .. }
-      | Term::Num { .. }
-      | Term::Nat { .. }
-      | Term::Str { .. }
-      | Term::Ref { .. }
-      | Term::Era
-      | Term::Err => PatternsIter::Zero([]),
-    }
-  }
-
-  pub fn patterns_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut Pattern> {
-    multi_iterator!(PatternsIter { Zero, Let, Mat });
-    match self {
-      Term::Mat { rules, .. } => PatternsIter::Mat(rules.iter_mut().flat_map(|r| r.pats.iter_mut())),
-      Term::Let { pat, .. } => PatternsIter::Let([pat]),
-      Term::Tup { .. }
-      | Term::Sup { .. }
-      | Term::Lst { .. }
-      | Term::Dup { .. }
-      | Term::Use { .. }
-      | Term::App { .. }
-      | Term::Opx { .. }
-      | Term::Lam { .. }
-      | Term::Chn { .. }
-      | Term::Var { .. }
-      | Term::Lnk { .. }
-      | Term::Num { .. }
-      | Term::Nat { .. }
-      | Term::Str { .. }
-      | Term::Ref { .. }
-      | Term::Era
-      | Term::Err => PatternsIter::Zero([]),
-    }
-  }
-
   /* Common checks and transformations */
   pub fn recursive_call<R, F>(f: F) -> R
   where
@@ -682,8 +662,12 @@ impl Term {
   }
 
   /// Substitute the occurrences of a variable in a term with the given term.
+  ///
   /// Caution: can cause invalid shadowing of variables if used incorrectly.
-  /// Ex: Using subst to beta-reduce (@a @b a b) converting it into (@b b).
+  /// Ex: Using subst to beta-reduce `(@a @b a b)` converting it into `@b b`.
+  ///
+  /// Expects var bind information to be properly stored in match expressions,
+  /// so it must run AFTER `fix_match_terms`.
   pub fn subst(&mut self, from: &Name, to: &Term) {
     Term::recursive_call(move || match self {
       Term::Var { nam } if nam == from => *self = to.clone(),
@@ -764,108 +748,12 @@ impl Term {
     go(self, &mut decls, &mut uses);
     (decls, uses)
   }
-
-  pub fn is_simple_match(&self, ctrs: &Constructors, adts: &Adts) -> bool {
-    // A match term
-    let Term::Mat { args, rules } = self else {
-      return false;
-    };
-    // With 1 argument
-    if args.len() != 1 {
-      return false;
-    }
-    // The argument is a variable
-    if !matches!(args[0], Term::Var { .. }) {
-      return false;
-    }
-    // Each arm only has 1 pattern for the 1 argument
-    if rules.iter().any(|r| r.pats.len() != 1) {
-      return false;
-    }
-    // The match is over a valid type
-    let Ok(typ) = infer_match_arg_type(rules, 0, ctrs) else {
-      return false;
-    };
-    // The match has one arm for each constructor, matching the constructors in adt declaration order
-    match typ {
-      Type::Any => {
-        if rules.len() != 1 {
-          return false;
-        }
-        if !matches!(rules[0].pats.as_slice(), [Pattern::Var(_)]) {
-          return false;
-        }
-      }
-      Type::Tup(_) => {
-        if rules.len() != 1 {
-          return false;
-        }
-        let Pattern::Tup(args) = &rules[0].pats[0] else { return false };
-        if args.iter().any(|p| !matches!(p, Pattern::Var(_))) {
-          return false;
-        }
-      }
-      Type::Num => {
-        let mut nums = HashSet::new();
-        for rule in rules {
-          if let Pattern::Num(NumCtr::Num(n)) = &rule.pats[0] {
-            if nums.contains(n) {
-              return false;
-            }
-            nums.insert(*n);
-          }
-        }
-      }
-      Type::NumSucc(n) => {
-        if rules.len() as u64 != n + 1 {
-          return false;
-        }
-        for (i, _) in rules.iter().enumerate() {
-          if i as u64 == n {
-            let Pattern::Num(NumCtr::Succ(n_pat, Some(_))) = &rules[i].pats[0] else { return false };
-            if n != *n_pat {
-              return false;
-            }
-          } else {
-            let Pattern::Num(NumCtr::Num(i_pat)) = &rules[i].pats[0] else { return false };
-            if i as u64 != *i_pat {
-              return false;
-            }
-          }
-        }
-      }
-      Type::Adt(adt) => {
-        let ctrs = &adts[&adt].ctrs;
-        if rules.len() != ctrs.len() {
-          return false;
-        }
-        for (rule, (ctr, args)) in rules.iter().zip(ctrs.iter()) {
-          if let Pattern::Ctr(rule_ctr, rule_args) = &rule.pats[0] {
-            if ctr != rule_ctr {
-              return false;
-            }
-            if rule_args.len() != args.len() {
-              return false;
-            }
-            if rule_args.iter().any(|arg| !matches!(arg, Pattern::Var(_))) {
-              return false;
-            }
-          } else {
-            return false;
-          }
-        }
-      }
-    }
-
-    true
-  }
 }
 
 impl Pattern {
   pub fn binds(&self) -> impl DoubleEndedIterator<Item = &Option<Name>> + Clone {
     self.iter().filter_map(|pat| match pat {
       Pattern::Var(nam) => Some(nam),
-      Pattern::Num(NumCtr::Succ(_, nam)) => nam.as_ref(),
       _ => None,
     })
   }
@@ -876,7 +764,7 @@ impl Pattern {
     let mut to_visit = vec![self];
     while let Some(pat) = to_visit.pop() {
       match pat {
-        Pattern::Var(nam) | Pattern::Num(NumCtr::Succ(_, Some(nam))) => binds.push(nam),
+        Pattern::Var(nam) => binds.push(nam),
         _ => to_visit.extend(pat.children_mut().rev()),
       }
     }
@@ -913,49 +801,8 @@ impl Pattern {
     els.into_iter()
   }
 
-  pub fn ctr_name(&self) -> Option<Name> {
-    match self {
-      Pattern::Var(_) => None,
-      Pattern::Ctr(nam, _) => Some(nam.clone()),
-      Pattern::Num(NumCtr::Num(num)) => Some(Name::new(format!("{num}"))),
-      Pattern::Num(NumCtr::Succ(num, _)) => Some(Name::new(format!("{num}+"))),
-      Pattern::Tup(pats) => Some(Name::new(format!("({})", ",".repeat(pats.len())))),
-      Pattern::Lst(_) => todo!(),
-      Pattern::Str(_) => todo!(),
-    }
-  }
-
   pub fn is_wildcard(&self) -> bool {
     matches!(self, Pattern::Var(_))
-  }
-
-  pub fn is_native_num_match(&self) -> bool {
-    matches!(self, Pattern::Num(NumCtr::Num(0) | NumCtr::Succ(1, _)))
-  }
-
-  /// True if this pattern has no nested subpatterns.
-  pub fn is_simple(&self) -> bool {
-    match self {
-      Pattern::Var(_) => true,
-      Pattern::Ctr(_, args) | Pattern::Tup(args) => args.iter().all(|arg| matches!(arg, Pattern::Var(_))),
-      Pattern::Num(_) => true,
-      Pattern::Lst(_) | Pattern::Str(_) => todo!(),
-    }
-  }
-
-  pub fn to_type(&self, ctrs: &Constructors) -> Type {
-    match self {
-      Pattern::Var(_) => Type::Any,
-      Pattern::Ctr(ctr_nam, _) => {
-        let adt_nam = ctrs.get(ctr_nam).expect("Unknown constructor '{ctr_nam}'");
-        Type::Adt(adt_nam.clone())
-      }
-      Pattern::Tup(args) => Type::Tup(args.len()),
-      Pattern::Num(NumCtr::Num(_)) => Type::Num,
-      Pattern::Num(NumCtr::Succ(n, _)) => Type::NumSucc(*n),
-      Pattern::Lst(..) => Type::Adt(builtins::LIST.into()),
-      Pattern::Str(..) => Type::Adt(builtins::STRING.into()),
-    }
   }
 
   pub fn to_term(&self) -> Term {
@@ -964,38 +811,10 @@ impl Pattern {
       Pattern::Ctr(ctr, args) => {
         Term::call(Term::Ref { nam: ctr.clone() }, args.iter().map(|arg| arg.to_term()))
       }
-      Pattern::Num(NumCtr::Num(val)) => Term::Num { val: *val },
-      // Succ constructor with no variable is not a valid term, only a compiler intermediate for a MAT inet node.
-      Pattern::Num(NumCtr::Succ(_, None)) => unreachable!(),
-      Pattern::Num(NumCtr::Succ(val, Some(Some(nam)))) => Term::add_num(Term::Var { nam: nam.clone() }, *val),
-      Pattern::Num(NumCtr::Succ(_, Some(None))) => Term::Era,
+      Pattern::Num(val) => Term::Num { val: *val },
       Pattern::Tup(args) => Term::Tup { els: args.iter().map(|p| p.to_term()).collect() },
       Pattern::Lst(_) | Pattern::Str(_) => todo!(),
     }
-  }
-
-  /// True if both patterns are equal (match the same expressions) without considering nested patterns.
-  pub fn simple_equals(&self, other: &Pattern) -> bool {
-    match (self, other) {
-      (Pattern::Ctr(a, _), Pattern::Ctr(b, _)) if a == b => true,
-      (Pattern::Num(NumCtr::Num(a)), Pattern::Num(NumCtr::Num(b))) if a == b => true,
-      (Pattern::Num(NumCtr::Succ(a, _)), Pattern::Num(NumCtr::Succ(b, _))) if a == b => true,
-      (Pattern::Tup(a), Pattern::Tup(b)) if a.len() == b.len() => true,
-      (Pattern::Lst(_), Pattern::Lst(_)) => true,
-      (Pattern::Var(_), Pattern::Var(_)) => true,
-      _ => false,
-    }
-  }
-
-  /// True if this pattern matches a subset of the other pattern, without considering nested patterns.
-  /// That is, when something matches the ctr of self if it also matches other.
-  pub fn simple_subset_of(&self, other: &Pattern) -> bool {
-    self.simple_equals(other) || matches!(other, Pattern::Var(_))
-  }
-
-  /// True if the two pattern will match some common expressions.
-  pub fn shares_simple_matches_with(&self, other: &Pattern) -> bool {
-    self.simple_equals(other) || matches!(self, Pattern::Var(_)) || matches!(other, Pattern::Var(_))
   }
 }
 
@@ -1026,43 +845,6 @@ impl Definition {
   pub fn rule_mut(&mut self) -> &mut Rule {
     self.assert_no_pattern_matching_rules();
     &mut self.rules[0]
-  }
-}
-
-impl Type {
-  /// Return the constructors for a given type as patterns.
-  pub fn ctrs(&self, adts: &Adts) -> Vec<Pattern> {
-    match self {
-      Type::Any => vec![Pattern::Var(None)],
-      Type::Tup(len) => {
-        vec![Pattern::Tup((0 .. *len).map(|i| Pattern::Var(Some(Name::new(format!("%x{i}"))))).collect())]
-      }
-      Type::NumSucc(n) => {
-        let mut ctrs = (0 .. *n).map(|n| Pattern::Num(NumCtr::Num(n))).collect::<Vec<_>>();
-        ctrs.push(Pattern::Num(NumCtr::Succ(*n, Some(Some("%pred".into())))));
-        ctrs
-      }
-      Type::Num => unreachable!(),
-      Type::Adt(adt) => {
-        // TODO: Should return just a ref to ctrs and not clone.
-        adts[adt]
-          .ctrs
-          .iter()
-          .map(|(nam, args)| {
-            Pattern::Ctr(nam.clone(), args.iter().map(|x| Pattern::Var(Some(x.clone()))).collect())
-          })
-          .collect()
-      }
-    }
-  }
-
-  /// True if the type is an ADT or a builtin equivalent of an ADT (like tups and numbers)
-  pub fn is_ctr_type(&self) -> bool {
-    matches!(self, Type::Adt(_) | Type::Num | Type::Tup(_))
-  }
-
-  pub fn is_var_type(&self) -> bool {
-    matches!(self, Type::Any)
   }
 }
 

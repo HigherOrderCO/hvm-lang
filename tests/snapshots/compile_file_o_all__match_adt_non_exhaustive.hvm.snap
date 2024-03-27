@@ -4,5 +4,4 @@ input_file: tests/golden_tests/compile_file_o_all/match_adt_non_exhaustive.hvm
 ---
 Errors:
 In definition 'main':
-  Non-exhaustive pattern matching. Hint:
-    Case 'Some' not covered.
+  Non-exhaustive 'match' expression of type 'Maybe'. Case 'Some' not covered.

@@ -4,7 +4,7 @@ input_file: tests/golden_tests/cli/warn_and_err.hvm
 ---
 Warnings:
 In definition 'Foo':
-  Repeated bind inside rule pattern: 'a'.
+  Repeated bind in pattern matching rule: 'a'.
 
 Errors:
 In definition 'Main':

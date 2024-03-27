@@ -3,14 +3,14 @@ source: tests/golden_tests.rs
 input_file: tests/golden_tests/encode_pattern_match/match_adt_unscoped_lambda.hvm
 ---
 TaggedScott:
-(main) = (#Maybe ((Some 1) λ$x * #Maybe λc c) $x)
+(main) = (#Maybe ((Some 1) λ$x * #Maybe λb b) $x)
 
 (None) = #Maybe λa #Maybe λ* a
 
 (Some) = λa #Maybe λ* #Maybe λc #Maybe (c a)
 
 Scott:
-(main) = (Some 1 λ$x * λc c $x)
+(main) = (Some 1 λ$x * λb b $x)
 
 (None) = λa λ* a
 

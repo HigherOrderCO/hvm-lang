@@ -1,1 +1,1 @@
-main = λa λb match a { 0: b; 1+: b }
+main = λa λb switch a { 0: b; _: b }

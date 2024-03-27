@@ -20,9 +20,9 @@
 // You can use numbers on the native match expression
 // The `+` arm binds the `scrutinee`-1 variable to the the value of the number -1
 (Num.pred) = λn 
-  match n { 
+  switch n { 
     0: 0
-    1+: n-1
+    _: n-1
   }
 
 // Write new data types like this
@@ -51,9 +51,9 @@ data Boxed = (Box val)
 // Types with only one constructor can be destructured using `let` or a single matching definition
 (Box.map (Box val) f) = (Box (f val))
 
-(Box.unbox) = λbox
-  let (Box val) = box
-  val
+(Box.unbox) = λbox match box {
+  Box: box.val
+}
 
 // Use tuples to store two values together without needing to create a new data type
 (Tuple.new fst snd) =
@@ -68,9 +68,9 @@ data Boxed = (Box val)
   snd
 
 // All files must have a main definition to be run.
-// You can execute a program in HVM with "cargo run -- --run <path to file>"
-// Other options are "--check" (the default mode) to just see if the file is well formed
-// and "--compile" to output hvm-core code.
+// You can execute a program in HVM with "cargo run -- run <path to file>"
+// Other options are "check" (the default mode) to just see if the file is well formed
+// and "compile" to output hvm-core code.
 (main) = 
   let tup = (Tuple.new None (Num.pred 5))
 

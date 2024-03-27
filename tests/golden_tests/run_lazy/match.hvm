@@ -1,5 +1,5 @@
 main =
-  match (+ 0 1) {
+  switch (+ 0 1) {
     0: λt λf t
-    1+: λt λf f
+    _: λt λf f
   }
