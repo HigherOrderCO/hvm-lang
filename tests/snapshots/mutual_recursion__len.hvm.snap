@@ -2,13 +2,11 @@
 source: tests/golden_tests.rs
 input_file: tests/golden_tests/mutual_recursion/len.hvm
 ---
-@Len = ({2 @Len$C1 {2 #0 a}} a)
+@Len = ({2 @Len$C0 {2 #0 a}} a)
 
-@Len$C0 = {2 a b}
+@Len$C0 = {2 * {2 a b}}
   & #1 ~ <+ c b>
   & @Len ~ (a c)
-
-@Len$C1 = {2 * @Len$C0}
 
 @List.cons = (a (b {2 {2 a {2 b c}} {2 * c}}))
 

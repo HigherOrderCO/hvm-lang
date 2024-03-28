@@ -2,9 +2,9 @@
 source: tests/golden_tests.rs
 input_file: tests/golden_tests/compile_file_o_all/num_pattern_with_var.hvm
 ---
-@Foo = ({2 (* #0) {2 @Foo$C1 a}} a)
+@Foo = ({2 (* #0) {2 @Foo$C0 a}} a)
 
-@Foo$C1 = (?<#0 (a a) b> b)
+@Foo$C0 = (?<#0 (a a) b> b)
 
 @main = a
   & @Foo ~ (@true (#3 a))

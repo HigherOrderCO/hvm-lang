@@ -2,7 +2,7 @@
 source: tests/golden_tests.rs
 input_file: tests/golden_tests/compile_file/unscoped_supercombinator.hvm
 ---
-@Foo = ((@Foo$C0 (@Foo$C1 a)) a)
+@Foo = ((@Foo$C1 (@Foo$C0 a)) a)
 
 @Foo$C0 = (a ((a b) b))
 

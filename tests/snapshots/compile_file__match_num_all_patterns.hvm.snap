@@ -30,10 +30,12 @@ In definition 'zero_var_succ':
 
 @succ_var = (?<#0 (a a) b> b)
 
-@succ_var_zero = (?<a @succ_var_zero$C0 b> b)
+@succ_var_zero = (?<@succ_var_zero$C0 @succ_var_zero$C1 a> a)
+
+@succ_var_zero$C0 = a
   & #0 ~ <+ #1 a>
 
-@succ_var_zero$C0 = (<+ #2 a> a)
+@succ_var_zero$C1 = (<+ #2 a> a)
 
 @succ_zero = (?<#0 (a a) b> b)
 

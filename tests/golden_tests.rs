@@ -276,7 +276,8 @@ fn encode_pattern_match() {
 #[test]
 fn desugar_file() {
   run_golden_test_dir(function_name!(), &|code, path| {
-    let diagnostics_cfg = DiagnosticsConfig::new(Severity::Error, true);
+    let mut diagnostics_cfg = DiagnosticsConfig::new(Severity::Error, true);
+    diagnostics_cfg.unused_definition = Severity::Allow;
     let mut book = do_parse_book(code, path)?;
     desugar_book(&mut book, CompileOpts::light(), diagnostics_cfg, None)?;
     Ok(book.to_string())

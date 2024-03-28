@@ -1,0 +1,35 @@
+---
+source: tests/golden_tests.rs
+input_file: tests/golden_tests/desugar_file/combinators.hvm
+---
+(foo) = λa λ* λ* (foo a)
+
+(bar) = λa λb (a bar b)
+
+(List.ignore) = λa λ* #List (a List.ignore$C0 0)
+
+(baz) = {0 1 2 3 λa a foo}
+
+(qux) = {0 qux}
+
+(tup) = (tup, 1, 0)
+
+(list) = (List.cons 0 list$C0)
+
+(A) = λa (A$C0 a)
+
+(B) = λa (B$C0 a)
+
+(Main) = list
+
+(List.cons) = λa λb #List λc #List λ* #List (c a b)
+
+(List.nil) = #List λ* #List λb b
+
+(A$C0) = let {b c} = A; λd (b c d)
+
+(B$C0) = let (c, d) = B; λe (c d e)
+
+(List.ignore$C0) = #List λ* #List λd (List.ignore d List.ignore)
+
+(list$C0) = (List.cons list List.nil)

@@ -231,6 +231,7 @@ pub struct Name(GlobalString);
 /// A macro for creating iterators that can have statically known
 /// different types. Useful for iterating over tree children, where
 /// each tree node variant yields a different iterator type.
+#[macro_export]
 macro_rules! multi_iterator {
   ($Iter:ident { $($Variant:ident),* $(,)? }) => {
     #[derive(Debug, Clone)]

@@ -4,13 +4,7 @@ input_file: tests/golden_tests/compile_file_o_all/scrutinee_reconstruction.hvm
 ---
 @None = {2 * {2 a a}}
 
-@Option.or = ({3 {2 @Option.or$C1 {2 @Option.or$C2 (a b)}} a} b)
-
-@Option.or$C0 = (a (* a))
-
-@Option.or$C1 = {2 * @Option.or$C0}
-
-@Option.or$C2 = (* (a a))
+@Option.or = ({3 {2 {2 * (a (* a))} {2 (* (b b)) (c d)}} c} d)
 
 @Some = (a {2 {2 a b} {2 * b}})
 

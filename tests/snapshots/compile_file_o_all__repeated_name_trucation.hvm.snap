@@ -28,9 +28,7 @@ For let expressions where the variable is non-linear (used more than once), you 
 See here for more info: https://github.com/HigherOrderCO/hvm-lang/blob/main/docs/lazy-definitions.md.
 
 
-@long_name_that_truncates = (* @long_name_that_truncates$C0)
-
-@long_name_that_truncates$C0 = (* @long_name_that_truncates)
+@long_name_that_truncates = (* (* @long_name_that_truncates))
 
 @main = a
   & @long_name_that_truncates ~ ((b b) a)

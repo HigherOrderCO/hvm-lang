@@ -1,0 +1,15 @@
+---
+source: tests/golden_tests.rs
+input_file: tests/golden_tests/desugar_file/deref_loop.hvm
+---
+(foo) = λa #nat (a #nat λb b foo$C0)
+
+(bar) = (foo 1)
+
+(main) = (foo 0)
+
+(succ) = λa #nat λb #nat λ* #nat (b a)
+
+(zero) = #nat λ* #nat λb b
+
+(foo$C0) = (bar 0)

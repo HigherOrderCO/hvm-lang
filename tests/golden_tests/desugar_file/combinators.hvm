@@ -1,0 +1,23 @@
+(foo) = λa λb λc (foo a)
+
+(bar) = λa λb (a bar b)
+
+(List.ignore list ignore) =
+  match list {
+    (List.cons): (List.ignore list.tail (List.ignore))
+    (List.nil): 0
+  }
+
+(baz) = {0 1 2 3 λa a foo}
+
+(qux) = {0 qux}
+
+(tup) = (tup, 1, 0)
+
+(list) = [0 list]
+
+(A x) = (let {a b} = A; @c (a b c) x)
+
+(B x) = (let (a, b) = B; @c (a b c) x)
+
+(Main) = list

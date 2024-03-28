@@ -2,5 +2,8 @@
 source: tests/golden_tests.rs
 input_file: tests/golden_tests/compile_file_o_all/black_box_ref.hvm
 ---
+@def_that_uses_black_box$C0 = a
+  & @HVM.black_box ~ (#6 a)
+
 @main = a
-  & @HVM.black_box ~ (#6 <* #7 a>)
+  & @def_that_uses_black_box$C0 ~ <* #7 a>
