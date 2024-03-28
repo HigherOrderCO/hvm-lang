@@ -4,8 +4,8 @@ input_file: tests/golden_tests/simplify_matches/bits_dec.hvm
 ---
 (Data.Bits.dec) = λ%arg0 match %arg0 { Data.Bits.e: Data.Bits.e; Data.Bits.o: match %arg0.t { Data.Bits.e: Data.Bits.e; Data.Bits.o: (Data.Bits.i (Data.Bits.dec %arg0.t.t)); Data.Bits.i: (Data.Bits.i (Data.Bits.dec %arg0.t.t)) }; Data.Bits.i: match %arg0.t { Data.Bits.e: (Data.Bits.o Data.Bits.e); Data.Bits.o: (Data.Bits.o %arg0.t.t); Data.Bits.i: (Data.Bits.o %arg0.t.t) } }
 
-(Data.Bits.i) = λt #Data.Bits λData.Bits.e #Data.Bits λData.Bits.o #Data.Bits λData.Bits.i #Data.Bits (Data.Bits.i t)
+(Data.Bits.e) = #Data.Bits λData.Bits.e #Data.Bits λData.Bits.o #Data.Bits λData.Bits.i Data.Bits.e
 
 (Data.Bits.o) = λt #Data.Bits λData.Bits.e #Data.Bits λData.Bits.o #Data.Bits λData.Bits.i #Data.Bits (Data.Bits.o t)
 
-(Data.Bits.e) = #Data.Bits λData.Bits.e #Data.Bits λData.Bits.o #Data.Bits λData.Bits.i Data.Bits.e
+(Data.Bits.i) = λt #Data.Bits λData.Bits.e #Data.Bits λData.Bits.o #Data.Bits λData.Bits.i #Data.Bits (Data.Bits.i t)

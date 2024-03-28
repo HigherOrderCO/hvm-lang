@@ -6,6 +6,6 @@ input_file: tests/golden_tests/simplify_matches/flatten_with_terminal.hvm
 
 (main) = (Foo 2 (A B))
 
-(B) = #B_t λB B
-
 (A) = λb #A_t λA #A_t (A b)
+
+(B) = #B_t λB B

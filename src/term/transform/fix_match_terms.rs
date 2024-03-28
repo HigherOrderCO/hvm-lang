@@ -268,7 +268,7 @@ impl ToStringVerbose for FixMatchErr {
         var.as_ref().unwrap_or(&Name::new("*"))
       ),
       FixMatchErr::ExtraSwitchArms => {
-        format!("Extra arms in 'switch' expression. No rules should come after the default.",)
+        "Extra arms in 'switch' expression. No rules should come after the default.".to_string()
       }
       FixMatchErr::RedundantArm { ctr } => {
         format!("Redundant arm in 'match' expression. Case '{ctr}' appears more than once.")

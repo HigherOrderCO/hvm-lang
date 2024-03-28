@@ -14,14 +14,6 @@ input_file: tests/golden_tests/simplify_matches/already_flat.hvm
 
 (Rule6) = λ%arg0 %arg0
 
-(CtrB3) = λb #Baz λCtrB0 #Baz λCtrB1 #Baz λCtrB2 #Baz λCtrB3 #Baz (CtrB3 b)
-
-(CtrB2) = λb #Baz λCtrB0 #Baz λCtrB1 #Baz λCtrB2 #Baz λCtrB3 #Baz (CtrB2 b)
-
-(CtrB1) = λb #Baz λCtrB0 #Baz λCtrB1 #Baz λCtrB2 #Baz λCtrB3 #Baz (CtrB1 b)
-
-(CtrB0) = #Baz λCtrB0 #Baz λCtrB1 #Baz λCtrB2 #Baz λCtrB3 CtrB0
-
 (CtrA) = #Foo λCtrA #Foo λCtrB CtrA
 
 (CtrB) = λx #Foo λCtrA #Foo λCtrB #Foo (CtrB x)
@@ -31,3 +23,11 @@ input_file: tests/golden_tests/simplify_matches/already_flat.hvm
 (CtrA2) = λa1 λa2 #Bar λCtrA1 #Bar λCtrA2 #Bar λCtrA3 #Bar (CtrA2 a1 a2)
 
 (CtrA3) = λa #Bar λCtrA1 #Bar λCtrA2 #Bar λCtrA3 #Bar (CtrA3 a)
+
+(CtrB0) = #Baz λCtrB0 #Baz λCtrB1 #Baz λCtrB2 #Baz λCtrB3 CtrB0
+
+(CtrB1) = λb #Baz λCtrB0 #Baz λCtrB1 #Baz λCtrB2 #Baz λCtrB3 #Baz (CtrB1 b)
+
+(CtrB2) = λb #Baz λCtrB0 #Baz λCtrB1 #Baz λCtrB2 #Baz λCtrB3 #Baz (CtrB2 b)
+
+(CtrB3) = λb #Baz λCtrB0 #Baz λCtrB1 #Baz λCtrB2 #Baz λCtrB3 #Baz (CtrB3 b)

@@ -8,6 +8,8 @@ In definition 'lambda_in':
 In definition 'lambda_out':
   Definition is unused.
 
-@lambda_in = (?<((a a) (b (c b))) (c d)> d)
-@lambda_out = (?<(a (b b)) c> (a c))
+@lambda_in = (?<(a a) (b (c b)) (c d)> d)
+
+@lambda_out = (?<a (b b) c> (a c))
+
 @main = *

@@ -6,6 +6,6 @@ input_file: tests/golden_tests/simplify_matches/double_unwrap_maybe.hvm
 
 (Main) = (DoubleUnwrap (Some None) 5)
 
-(None) = #Maybe λSome #Maybe λNone None
-
 (Some) = λx #Maybe λSome #Maybe λNone #Maybe (Some x)
+
+(None) = #Maybe λSome #Maybe λNone None
